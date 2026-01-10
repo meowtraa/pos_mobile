@@ -1,5 +1,5 @@
-/// Firebase Configuration
-/// Contains Firebase initialization and configuration settings
+/// Firebase Configuration Example
+/// Copy this file to firebase_config.dart and fill in your actual values
 library;
 
 import 'package:firebase_core/firebase_core.dart';
@@ -7,7 +7,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 
 class FirebaseConfig {
-  static const String databaseUrl = 'https://pos-fire-d563d-default-rtdb.asia-southeast1.firebasedatabase.app';
+  static const String databaseUrl = 'YOUR_DATABASE_URL';
 
   static FirebaseDatabase? _database;
 
@@ -15,12 +15,12 @@ class FirebaseConfig {
   static Future<void> initialize() async {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'AIzaSyBxTcQ2FgA-YyR38LxYMuo7fsgtg4iYI4M',
-        appId: '1:423393494164:android:82970b75e83e56edb86081',
-        messagingSenderId: '423393494164',
-        projectId: 'pos-fire-d563d',
+        apiKey: 'YOUR_API_KEY',
+        appId: 'YOUR_APP_ID',
+        messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+        projectId: 'YOUR_PROJECT_ID',
         databaseURL: databaseUrl,
-        storageBucket: 'pos-fire-d563d.firebasestorage.app',
+        storageBucket: 'YOUR_STORAGE_BUCKET',
       ),
     );
 

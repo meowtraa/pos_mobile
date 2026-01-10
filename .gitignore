@@ -47,3 +47,5 @@ app.*.map.json
 # Firebase keys
 google-services.json
 GoogleService-Info.plist
+
+lib/core/firebase/firebase_config.dart
