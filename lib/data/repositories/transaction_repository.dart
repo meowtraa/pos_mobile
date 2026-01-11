@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/firebase/firebase_service.dart';
+import '../../core/services/connectivity_service.dart';
 import '../../core/services/sync_manager.dart';
 import '../../core/sync/sync_status.dart';
 import '../models/transaction.dart' as model;
@@ -93,6 +94,72 @@ class TransactionRepository {
         print('❌ Create transaction failed: $e');
       }
       rethrow;
+    }
+  }
+
+  /// Verify sync status of pending items
+  /// Call this on app startup to sync SyncManager with actual Firebase state
+  /// Only marks as synced when we're actually ONLINE (not from local cache)
+  Future<void> verifySyncStatus() async {
+    final syncManager = SyncManager.instance;
+    final pendingItems = syncManager.pendingItems;
+
+    if (pendingItems.isEmpty) {
+      if (kDebugMode) {
+        print('✅ [VERIFY] No pending items to verify');
+      }
+      return;
+    }
+
+    // Check if we're actually online
+    final isOnline = ConnectivityService.instance.isOnline;
+    if (!isOnline) {
+      if (kDebugMode) {
+        print('📶 [VERIFY] Offline - skipping verification, ${pendingItems.length} items remain pending');
+      }
+      return;
+    }
+
+    if (kDebugMode) {
+      print('🔍 [VERIFY] Verifying ${pendingItems.length} pending items (online)...');
+    }
+
+    for (final item in pendingItems) {
+      if (item.type != 'transaction') continue;
+
+      try {
+        // Check if transaction exists in Firebase SERVER (we're online now)
+        final snapshot = await _firebase.get('$_transactionsPath/pending/${item.id}');
+
+        if (snapshot.exists) {
+          // Transaction exists in Firebase server = synced successfully
+          syncManager.markSynced(item.id);
+          if (kDebugMode) {
+            print('✅ [VERIFY] ${item.id} is synced to server');
+          }
+        } else {
+          // Check in completed too
+          final completedSnapshot = await _firebase.get('$_transactionsPath/completed/${item.id}');
+          if (completedSnapshot.exists) {
+            syncManager.markSynced(item.id);
+            if (kDebugMode) {
+              print('✅ [VERIFY] ${item.id} is synced (completed)');
+            }
+          } else {
+            if (kDebugMode) {
+              print('⏳ [VERIFY] ${item.id} still pending');
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ [VERIFY] Error checking ${item.id}: $e');
+        }
+      }
+    }
+
+    if (kDebugMode) {
+      print('✅ [VERIFY] Sync verification complete');
     }
   }
 

@@ -81,26 +81,25 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.PNG"
+  image_path: "assets/images/1024.png"
   min_sdk_android: 21
   # Disable adaptive icons to prevent distortion
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/logo.PNG"
+  adaptive_icon_foreground: "assets/images/1024.png"
   # Remove alpha for iOS
   remove_alpha_ios: true
 
 # Native Splash Screen Configuration  
 flutter_native_splash:
   color: "#FFFFFF"
-  image: assets/images/logo.PNG
+  image: assets/images/960.png
   android: true
   ios: true
   # Use branding mode for Android 12+ to avoid circular crop
   android_12:
     color: "#FFFFFF"
-    image: assets/images/logo.PNG
+    image: assets/images/960.png
     icon_background_color: "#FFFFFF"
-    branding: assets/images/logo.PNG
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

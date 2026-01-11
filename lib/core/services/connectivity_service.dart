@@ -13,29 +13,44 @@ class ConnectivityService extends ChangeNotifier {
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _subscription;
 
-  ConnectionStatus _status = ConnectionStatus.online;
+  // Default to OFFLINE until we actually check
+  ConnectionStatus _status = ConnectionStatus.offline;
+  bool _isInitialized = false;
+
   ConnectionStatus get status => _status;
   bool get isOnline => _status == ConnectionStatus.online;
+  bool get isInitialized => _isInitialized;
 
-  ConnectivityService._() {
-    _init();
-  }
+  ConnectivityService._();
 
   static ConnectivityService get instance {
     _instance ??= ConnectivityService._();
     return _instance!;
   }
 
-  Future<void> _init() async {
+  /// Initialize the service - must be called before using
+  Future<void> init() async {
+    if (_isInitialized) return;
+
     // Check initial status
     final results = await _connectivity.checkConnectivity();
-    _updateStatus(results);
+    _updateStatus(results, notify: false);
 
     // Listen to connectivity changes
-    _subscription = _connectivity.onConnectivityChanged.listen(_updateStatus);
+    _subscription = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
+
+    _isInitialized = true;
+
+    if (kDebugMode) {
+      print('📶 Connectivity service initialized: $_status');
+    }
   }
 
-  void _updateStatus(List<ConnectivityResult> results) {
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    _updateStatus(results, notify: true);
+  }
+
+  void _updateStatus(List<ConnectivityResult> results, {required bool notify}) {
     final wasOnline = _status == ConnectionStatus.online;
 
     // Check if any connection is available
@@ -48,7 +63,7 @@ class ConnectivityService extends ChangeNotifier {
     }
 
     // Only notify if status actually changed
-    if (wasOnline != isOnline) {
+    if (notify && wasOnline != isOnline) {
       notifyListeners();
     }
   }

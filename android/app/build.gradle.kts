@@ -8,8 +8,8 @@ plugins {
 }
 
 android {
-    namespace = "com.machos.pos"
-    compileSdk = 34
+    namespace = "com.example.pos_mobile"
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.machos.pos"
+        applicationId = "com.example.pos_mobile"
         // Min SDK 28 (Android 9 Pie) - Modern devices
         minSdk = 28
         // Target SDK 34 (Android 14) - Latest stable
