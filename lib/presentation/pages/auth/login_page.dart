@@ -160,19 +160,7 @@ class _LoginPageState extends State<LoginPage> {
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
-                            const SizedBox(height: 8),
-
-                            // Forgot Password
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  // TODO: Forgot password
-                                },
-                                child: const Text('Lupa Password?'),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
 
                             // Error Message
                             if (viewModel.isError)
@@ -211,46 +199,6 @@ class _LoginPageState extends State<LoginPage> {
                                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                     )
                                   : const Text('Masuk'),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Demo Login Button
-                            OutlinedButton.icon(
-                              onPressed: viewModel.isLoading
-                                  ? null
-                                  : () {
-                                      viewModel.fillDemoCredentials();
-                                      _emailController.text = LoginViewModel.demoEmail;
-                                      _passwordController.text = LoginViewModel.demoPassword;
-                                    },
-                              icon: const Icon(Icons.play_circle_outline),
-                              label: const Text('Login Demo (24 Jam)'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Demo Info
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.info_outline, color: colorScheme.primary, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Akun demo: ${LoginViewModel.demoEmail}\nPassword: ${LoginViewModel.demoPassword}\nSession berlaku 24 jam',
-                                      style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                           ],
                         ),

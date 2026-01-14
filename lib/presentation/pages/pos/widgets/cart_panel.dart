@@ -20,8 +20,9 @@ class CartPanel extends StatefulWidget {
   final void Function(String productId, int quantity) onQuantityChanged;
   final void Function(String productId, Staff staff) onStaffChanged;
   final void Function(String productId) onRemoveItem;
-  final void Function(String code) onApplyCoupon;
+  final Future<void> Function(String code) onApplyCoupon;
   final VoidCallback onRemoveCoupon;
+  final bool isApplyingCoupon;
 
   const CartPanel({
     super.key,
@@ -33,6 +34,7 @@ class CartPanel extends StatefulWidget {
     required this.couponApplied,
     this.couponError,
     this.discountPercent = 0,
+    this.isApplyingCoupon = false,
     required this.onReset,
     required this.onCheckout,
     required this.onQuantityChanged,
@@ -130,78 +132,92 @@ class _CartPanelState extends State<CartPanel> {
               ],
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // TODO: Enable coupon feature later
-                // Coupon Input - COMMENTED OUT
-                // Row(
-                //   children: [
-                //     Expanded(
-                //       child: TextField(
-                //         controller: _couponController,
-                //         enabled: !widget.couponApplied,
-                //         textCapitalization: TextCapitalization.characters,
-                //         decoration: InputDecoration(
-                //           hintText: 'Kode Kupon',
-                //           prefixIcon: const Icon(Icons.discount_outlined, size: 20),
-                //           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                //           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                //           isDense: true,
-                //         ),
-                //         style: theme.textTheme.bodyMedium,
-                //       ),
-                //     ),
-                //     const SizedBox(width: 8),
-                //     if (widget.couponApplied)
-                //       IconButton.filled(
-                //         onPressed: () {
-                //           _couponController.clear();
-                //           widget.onRemoveCoupon();
-                //         },
-                //         style: IconButton.styleFrom(
-                //           backgroundColor: colorScheme.errorContainer,
-                //           foregroundColor: colorScheme.error,
-                //         ),
-                //         icon: const Icon(Icons.close, size: 20),
-                //       )
-                //     else
-                //       FilledButton(
-                //         onPressed: widget.items.isEmpty ? null : () => widget.onApplyCoupon(_couponController.text),
-                //         style: FilledButton.styleFrom(
-                //           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                //         ),
-                //         child: const Text('Pakai'),
-                //       ),
-                //   ],
-                // ),
-                //
-                // // Coupon Error or Success
-                // if (widget.couponError != null)
-                //   Padding(
-                //     padding: const EdgeInsets.only(top: 8),
-                //     child: Row(
-                //       children: [
-                //         Icon(Icons.error_outline, size: 16, color: colorScheme.error),
-                //         const SizedBox(width: 4),
-                //         Text(widget.couponError!, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.error)),
-                //       ],
-                //     ),
-                //   ),
-                // if (widget.couponApplied)
-                //   Padding(
-                //     padding: const EdgeInsets.only(top: 8),
-                //     child: Row(
-                //       children: [
-                //         Icon(Icons.check_circle, size: 16, color: colorScheme.primary),
-                //         const SizedBox(width: 4),
-                //         Text(
-                //           'Kupon berhasil diterapkan!',
-                //           style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                //
-                // const SizedBox(height: 16),
+                // Voucher Input
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _couponController,
+                        enabled: !widget.couponApplied && !widget.isApplyingCoupon,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: InputDecoration(
+                          hintText: 'Kode Voucher',
+                          prefixIcon: const Icon(Icons.discount_outlined, size: 20),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          isDense: true,
+                        ),
+                        style: theme.textTheme.bodyMedium,
+                        onSubmitted: widget.items.isEmpty || widget.isApplyingCoupon
+                            ? null
+                            : (value) => widget.onApplyCoupon(value),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (widget.isApplyingCoupon)
+                      const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    else if (widget.couponApplied)
+                      IconButton.filled(
+                        onPressed: () {
+                          _couponController.clear();
+                          widget.onRemoveCoupon();
+                        },
+                        style: IconButton.styleFrom(
+                          backgroundColor: colorScheme.errorContainer,
+                          foregroundColor: colorScheme.error,
+                        ),
+                        icon: const Icon(Icons.close, size: 20),
+                      )
+                    else
+                      FilledButton(
+                        onPressed: widget.items.isEmpty ? null : () => widget.onApplyCoupon(_couponController.text),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        child: const Text('Pakai'),
+                      ),
+                  ],
+                ),
+
+                // Voucher Error or Success Message
+                if (widget.couponError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, size: 16, color: colorScheme.error),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            widget.couponError!,
+                            style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (widget.couponApplied)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, size: 16, color: colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Voucher berhasil diterapkan!',
+                          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
 
                 // Subtotal - commented out since each item now shows subtotal
                 // Uncomment when PPN is implemented
@@ -222,21 +238,29 @@ class _CartPanelState extends State<CartPanel> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Text('Diskon', style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.primary)),
-                          if (widget.discountPercent > 0)
-                            Text(
-                              ' (${widget.discountPercent.toInt()}%)',
-                              style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
-                            ),
-                        ],
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Diskon', style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.primary)),
+                            if (widget.discountPercent > 0)
+                              Text(
+                                ' (${widget.discountPercent.toInt()}%)',
+                                style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
+                              ),
+                          ],
+                        ),
                       ),
-                      Text(
-                        '- Rp ${_formatPrice(widget.discountValue)}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '- Rp ${_formatPrice(widget.discountValue)}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],

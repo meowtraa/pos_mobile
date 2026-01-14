@@ -111,6 +111,7 @@ class _POSPageState extends State<POSPage> {
                         couponApplied: viewModel.couponApplied,
                         couponError: viewModel.couponError,
                         discountPercent: viewModel.discountPercent,
+                        isApplyingCoupon: viewModel.isApplyingCoupon,
                         onReset: viewModel.resetCart,
                         onCheckout: () => _showPaymentDialog(context, viewModel, viewModel.total),
                         onQuantityChanged: viewModel.updateQuantity,

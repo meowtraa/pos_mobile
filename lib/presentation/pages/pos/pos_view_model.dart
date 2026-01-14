@@ -7,9 +7,11 @@ import '../../../data/models/product.dart';
 import '../../../data/models/staff.dart';
 import '../../../data/models/transaction.dart' as model;
 import '../../../data/models/transaction_item.dart';
+import '../../../data/models/voucher.dart';
 import '../../../data/repositories/product_repository.dart';
 import '../../../data/repositories/staff_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
+import '../../../data/repositories/voucher_repository.dart';
 import '../../providers/base_view_model.dart';
 
 /// POS View Model
@@ -19,6 +21,7 @@ class POSViewModel extends BaseViewModel {
   final ProductRepository _productRepo = ProductRepository.instance;
   final StaffRepository _staffRepo = StaffRepository.instance;
   final TransactionRepository _transactionRepo = TransactionRepository.instance;
+  final VoucherRepository _voucherRepo = VoucherRepository.instance;
 
   // Stream subscriptions
   StreamSubscription? _productsSubscription;
@@ -34,12 +37,15 @@ class POSViewModel extends BaseViewModel {
   bool _isLoading = true;
   String? _error;
 
-  // Coupon State
+  // Coupon/Voucher State
   String _couponCode = '';
   double _discountAmount = 0;
   double _discountPercent = 0;
+  double _maxPotongan = 0;
   String? _couponError;
   bool _couponApplied = false;
+  bool _isApplyingCoupon = false;
+  Voucher? _appliedVoucher;
 
   // Getters
   List<Product> get products => _products;
@@ -57,6 +63,8 @@ class POSViewModel extends BaseViewModel {
   double get discountPercent => _discountPercent;
   String? get couponError => _couponError;
   bool get couponApplied => _couponApplied;
+  bool get isApplyingCoupon => _isApplyingCoupon;
+  Voucher? get appliedVoucher => _appliedVoucher;
   bool get hasDiscount => _discountAmount > 0 || _discountPercent > 0;
 
   /// Get filtered products based on category and search
@@ -78,10 +86,15 @@ class POSViewModel extends BaseViewModel {
     return _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
   }
 
-  /// Calculate discount value
+  /// Calculate discount value (respects maxPotongan for percentage discount)
   double get discountValue {
     if (_discountPercent > 0) {
-      return subtotal * (_discountPercent / 100);
+      final calculated = subtotal * (_discountPercent / 100);
+      // Apply max discount limit if specified
+      if (_maxPotongan > 0 && calculated > _maxPotongan) {
+        return _maxPotongan;
+      }
+      return calculated;
     }
     return _discountAmount;
   }
@@ -265,47 +278,76 @@ class POSViewModel extends BaseViewModel {
     }
   }
 
-  /// Apply coupon code
-  void applyCoupon(String code) {
+  /// Apply coupon/voucher code from Firebase
+  Future<void> applyCoupon(String code) async {
+    if (code.isEmpty) {
+      _couponError = 'Masukkan kode voucher';
+      notifyListeners();
+      return;
+    }
+
     _couponCode = code.toUpperCase().trim();
     _couponError = null;
+    _isApplyingCoupon = true;
+    notifyListeners();
 
-    // Demo coupons - in real app, validate from Firebase
-    final coupons = {
-      'DISKON10': {'type': 'percent', 'value': 10.0},
-      'DISKON20': {'type': 'percent', 'value': 20.0},
-      'HEMAT5K': {'type': 'amount', 'value': 5000.0},
-      'HEMAT10K': {'type': 'amount', 'value': 10000.0},
-      'MACHO50': {'type': 'percent', 'value': 50.0},
-    };
+    try {
+      // Validate voucher from Firebase
+      final result = await _voucherRepo.validateVoucher(_couponCode, subtotal);
 
-    if (coupons.containsKey(_couponCode)) {
-      final coupon = coupons[_couponCode]!;
-      if (coupon['type'] == 'percent') {
-        _discountPercent = coupon['value'] as double;
-        _discountAmount = 0;
+      if (result.voucher != null) {
+        final voucher = result.voucher!;
+        _appliedVoucher = voucher;
+
+        if (voucher.tipe == VoucherType.persen) {
+          _discountPercent = voucher.nilai;
+          _discountAmount = 0;
+          _maxPotongan = voucher.maxPotongan;
+        } else {
+          _discountAmount = voucher.nilai > subtotal ? subtotal : voucher.nilai;
+          _discountPercent = 0;
+          _maxPotongan = 0;
+        }
+        _couponApplied = true;
+        _couponError = null;
+
+        if (kDebugMode) {
+          print('🎫 Voucher applied: ${voucher.kode} (${voucher.tipe}, ${voucher.nilai})');
+        }
       } else {
-        _discountAmount = coupon['value'] as double;
+        _couponError = result.error ?? 'Kode voucher tidak valid';
+        _discountAmount = 0;
         _discountPercent = 0;
+        _maxPotongan = 0;
+        _couponApplied = false;
+        _appliedVoucher = null;
       }
-      _couponApplied = true;
-      _couponError = null;
-    } else {
-      _couponError = 'Kode kupon tidak valid';
+    } catch (e) {
+      _couponError = 'Gagal memvalidasi voucher';
       _discountAmount = 0;
       _discountPercent = 0;
+      _maxPotongan = 0;
       _couponApplied = false;
+      _appliedVoucher = null;
+
+      if (kDebugMode) {
+        print('❌ Apply voucher failed: $e');
+      }
     }
+
+    _isApplyingCoupon = false;
     notifyListeners();
   }
 
-  /// Remove applied coupon
+  /// Remove applied coupon/voucher
   void removeCoupon() {
     _couponCode = '';
     _discountAmount = 0;
     _discountPercent = 0;
+    _maxPotongan = 0;
     _couponError = null;
     _couponApplied = false;
+    _appliedVoucher = null;
     notifyListeners();
   }
 
@@ -362,6 +404,11 @@ class POSViewModel extends BaseViewModel {
         if (!item.product.isService) {
           await _productRepo.decreaseStock(item.product.id, item.quantity);
         }
+      }
+
+      // Decrease voucher quota if voucher was applied
+      if (_appliedVoucher != null && _couponApplied) {
+        await _voucherRepo.useVoucher(_appliedVoucher!.kode);
       }
 
       // Reset cart

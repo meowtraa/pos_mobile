@@ -1,14 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 /// Connection status enum
 enum ConnectionStatus { online, offline }
 
 /// Connectivity Service
-/// Monitors network connectivity status
-class ConnectivityService extends ChangeNotifier {
+/// Monitors network connectivity status using connectivity_plus only
+class ConnectivityService extends ChangeNotifier with WidgetsBindingObserver {
   static ConnectivityService? _instance;
 
   final Connectivity _connectivity = Connectivity();
@@ -33,12 +33,17 @@ class ConnectivityService extends ChangeNotifier {
   Future<void> init() async {
     if (_isInitialized) return;
 
+    // Register lifecycle observer to check when app resumes
+    WidgetsBinding.instance.addObserver(this);
+
     // Check initial status
     final results = await _connectivity.checkConnectivity();
-    _updateStatus(results, notify: false);
+    _updateStatus(results, notify: true);
 
     // Listen to connectivity changes
-    _subscription = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
+    _subscription = _connectivity.onConnectivityChanged.listen((results) {
+      _updateStatus(results, notify: true);
+    });
 
     _isInitialized = true;
 
@@ -47,15 +52,9 @@ class ConnectivityService extends ChangeNotifier {
     }
   }
 
-  void _onConnectivityChanged(List<ConnectivityResult> results) {
-    _updateStatus(results, notify: true);
-  }
-
+  /// Update status based on connectivity results
   void _updateStatus(List<ConnectivityResult> results, {required bool notify}) {
-    final wasOnline = _status == ConnectionStatus.online;
-
-    // Check if any connection is available from network interface
-    final hasNetworkConnection = results.any(
+    final hasConnection = results.any(
       (result) =>
           result == ConnectivityResult.wifi ||
           result == ConnectivityResult.mobile ||
@@ -63,37 +62,41 @@ class ConnectivityService extends ChangeNotifier {
           result == ConnectivityResult.vpn,
     );
 
-    if (hasNetworkConnection) {
-      // If network is connected, check for actual internet access
-      _checkInternetConnection().then((hasInternet) {
-        final newStatus = hasInternet ? ConnectionStatus.online : ConnectionStatus.offline;
+    final newStatus = hasConnection ? ConnectionStatus.online : ConnectionStatus.offline;
 
-        if (_status != newStatus) {
-          _status = newStatus;
-          if (kDebugMode) {
-            print('📶 Internet Check Result: $_status');
-          }
-          if (notify) notifyListeners();
-        }
-      });
-    } else {
-      _status = ConnectionStatus.offline;
-      if (notify && wasOnline) notifyListeners();
-    }
-  }
-
-  /// Check if we have actual internet access by looking up a known domain
-  Future<bool> _checkInternetConnection() async {
-    try {
-      final result = await InternetAddress.lookup('google.com');
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } catch (_) {
-      return false;
+    if (_status != newStatus) {
+      _status = newStatus;
+      if (kDebugMode) {
+        print('📶 Connection Status Changed: $_status (results: $results)');
+      }
+      if (notify) notifyListeners();
     }
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (kDebugMode) {
+        print('📶 App resumed, re-checking connectivity...');
+      }
+      _recheckConnectivity();
+    }
+  }
+
+  /// Re-check connectivity when app resumes
+  Future<void> _recheckConnectivity() async {
+    final results = await _connectivity.checkConnectivity();
+    _updateStatus(results, notify: true);
+  }
+
+  /// Force check connectivity
+  Future<void> checkNow() async {
+    await _recheckConnectivity();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
     super.dispose();
   }
