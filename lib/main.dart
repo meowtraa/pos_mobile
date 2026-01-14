@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'app.dart';
 import 'core/firebase/firebase_config.dart';
 import 'core/services/connectivity_service.dart';
+import 'core/services/printer_service.dart';
 import 'core/services/session_service.dart';
 import 'core/services/sync_manager.dart';
 import 'core/services/order_sync_service.dart';
@@ -14,7 +15,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Lock orientation to landscape only
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+  // await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
 
   // Initialize Firebase
   try {
@@ -34,6 +35,18 @@ void main() async {
   } catch (e) {
     if (kDebugMode) {
       print('❌ Connectivity service initialization failed: $e');
+    }
+  }
+
+  // Initialize Printer Service (auto-reconnect to last printer)
+  try {
+    await PrinterService.instance.init();
+    if (kDebugMode) {
+      print('🖨️ Printer service initialized');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('❌ Printer service initialization failed: $e');
     }
   }
 

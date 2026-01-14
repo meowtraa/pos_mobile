@@ -11,6 +11,7 @@ import 'pos_view_model.dart';
 import 'widgets/cart_panel.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/payment_dialog.dart';
+import 'widgets/print_settings_dialog.dart';
 import 'widgets/product_card.dart';
 import 'widgets/receipt_dialog.dart';
 import 'widgets/success_dialog.dart';
@@ -235,6 +236,9 @@ class _ProductsSection extends StatelessWidget {
                         onSelected: (value) {
                           if (value == 'profile') {
                             Navigator.pushNamed(context, '/profile');
+                          } else if (value == 'print_settings') {
+                            // Open Print Settings Dialog
+                            PrintSettingsDialog.show(context);
                           } else if (value == 'logout') {
                             showDialog(
                               context: context,
@@ -301,6 +305,16 @@ class _ProductsSection extends StatelessWidget {
                                 Icon(Icons.person_outline, color: colorScheme.onSurface),
                                 const SizedBox(width: 12),
                                 const Text('Profil Saya'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'print_settings',
+                            child: Row(
+                              children: [
+                                Icon(Icons.print, color: colorScheme.onSurface),
+                                const SizedBox(width: 12),
+                                const Text('Pengaturan Print'),
                               ],
                             ),
                           ),

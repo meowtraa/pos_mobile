@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
@@ -53,18 +54,41 @@ class ConnectivityService extends ChangeNotifier {
   void _updateStatus(List<ConnectivityResult> results, {required bool notify}) {
     final wasOnline = _status == ConnectionStatus.online;
 
-    // Check if any connection is available
-    final hasConnection = results.any((result) => result != ConnectivityResult.none);
+    // Check if any connection is available from network interface
+    final hasNetworkConnection = results.any(
+      (result) =>
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.ethernet ||
+          result == ConnectivityResult.vpn,
+    );
 
-    _status = hasConnection ? ConnectionStatus.online : ConnectionStatus.offline;
+    if (hasNetworkConnection) {
+      // If network is connected, check for actual internet access
+      _checkInternetConnection().then((hasInternet) {
+        final newStatus = hasInternet ? ConnectionStatus.online : ConnectionStatus.offline;
 
-    if (kDebugMode) {
-      print('📶 Connectivity: $_status (results: $results)');
+        if (_status != newStatus) {
+          _status = newStatus;
+          if (kDebugMode) {
+            print('📶 Internet Check Result: $_status');
+          }
+          if (notify) notifyListeners();
+        }
+      });
+    } else {
+      _status = ConnectionStatus.offline;
+      if (notify && wasOnline) notifyListeners();
     }
+  }
 
-    // Only notify if status actually changed
-    if (notify && wasOnline != isOnline) {
-      notifyListeners();
+  /// Check if we have actual internet access by looking up a known domain
+  Future<bool> _checkInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
     }
   }
 

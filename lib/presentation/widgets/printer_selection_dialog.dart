@@ -5,7 +5,7 @@ import '../../core/services/printer_service.dart';
 
 /// Printer Selection Dialog
 /// Shows a dialog to scan, select, and connect to a Bluetooth printer
-class PrinterSelectionDialog extends StatelessWidget {
+class PrinterSelectionDialog extends StatefulWidget {
   final VoidCallback? onConnected;
 
   const PrinterSelectionDialog({super.key, this.onConnected});
@@ -15,6 +15,54 @@ class PrinterSelectionDialog extends StatelessWidget {
     return showDialog<void>(
       context: context,
       builder: (ctx) => PrinterSelectionDialog(onConnected: () => Navigator.pop(ctx)),
+    );
+  }
+
+  @override
+  State<PrinterSelectionDialog> createState() => _PrinterSelectionDialogState();
+}
+
+class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
+  String? _lastMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to printer service changes
+    PrinterService.instance.addListener(_onPrinterUpdate);
+  }
+
+  @override
+  void dispose() {
+    PrinterService.instance.removeListener(_onPrinterUpdate);
+    super.dispose();
+  }
+
+  void _onPrinterUpdate() {
+    final printer = PrinterService.instance;
+    // Show dialog only once when scan completes
+    if (printer.lastScanMessage != null && printer.lastScanMessage != _lastMessage) {
+      _lastMessage = printer.lastScanMessage;
+      if (mounted) {
+        _showScanResultDialog(printer.lastScanMessage!, printer.lastScanSuccess);
+      }
+    }
+  }
+
+  void _showScanResultDialog(String message, bool isSuccess) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(isSuccess ? Icons.check_circle : Icons.info_outline, color: isSuccess ? Colors.green : Colors.orange),
+            const SizedBox(width: 8),
+            Text(isSuccess ? 'Scan Selesai' : 'Tidak Ada Printer'),
+          ],
+        ),
+        content: Text(message),
+        actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+      ),
     );
   }
 
@@ -89,11 +137,11 @@ class PrinterSelectionDialog extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  printer.connectedDevice!.name ?? 'Unknown',
+                                  printer.connectedDevice!.name,
                                   style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 Text(
-                                  printer.connectedDevice!.address ?? '',
+                                  printer.connectedDevice!.macAdress,
                                   style: TextStyle(fontSize: 11, color: colorScheme.outline),
                                 ),
                               ],
@@ -127,19 +175,19 @@ class PrinterSelectionDialog extends StatelessWidget {
                             itemCount: printer.devices.length,
                             itemBuilder: (context, index) {
                               final device = printer.devices[index];
-                              final isConnected = printer.connectedDevice?.address == device.address;
+                              final isConnected = printer.connectedDevice?.macAdress == device.macAdress;
 
                               return ListTile(
                                 leading: Icon(Icons.print, color: isConnected ? Colors.green : colorScheme.onSurface),
-                                title: Text(device.name ?? 'Unknown Device'),
-                                subtitle: Text(device.address ?? ''),
+                                title: Text(device.name),
+                                subtitle: Text(device.macAdress),
                                 trailing: isConnected ? const Icon(Icons.check_circle, color: Colors.green) : null,
                                 onTap: isConnected
                                     ? null
                                     : () async {
                                         final success = await printer.connect(device);
                                         if (success && context.mounted) {
-                                          onConnected?.call();
+                                          widget.onConnected?.call();
                                         }
                                       },
                               );
