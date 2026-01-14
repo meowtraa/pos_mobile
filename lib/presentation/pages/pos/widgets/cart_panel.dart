@@ -203,17 +203,18 @@ class _CartPanelState extends State<CartPanel> {
                 //
                 // const SizedBox(height: 16),
 
-                // Subtotal
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Subtotal', style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-                    Text(
-                      'Rp ${_formatPrice(widget.subtotal)}',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
+                // Subtotal - commented out since each item now shows subtotal
+                // Uncomment when PPN is implemented
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                //   children: [
+                //     Text('Subtotal', style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+                //     Text(
+                //       'Rp ${_formatPrice(widget.subtotal)}',
+                //       style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                //     ),
+                //   ],
+                // ),
 
                 // Discount Row (if applicable)
                 if (widget.discountValue > 0) ...[

@@ -7,8 +7,9 @@ import '../../../../data/models/product.dart';
 class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback onTap;
+  final bool isDisabled;
 
-  const ProductCard({super.key, required this.product, required this.onTap});
+  const ProductCard({super.key, required this.product, required this.onTap, this.isDisabled = false});
 
   @override
   Widget build(BuildContext context) {
@@ -21,71 +22,102 @@ class ProductCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       elevation: 0,
       child: InkWell(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Product Image
-              AspectRatio(
-                aspectRatio: 1.3,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
-                    child: Image.network(
-                      product.imageUrl ?? '',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(Icons.image_outlined, size: 40, color: colorScheme.outline),
-                    ),
-                  ),
+        onTap: isDisabled ? null : onTap,
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDisabled
+                      ? colorScheme.outlineVariant.withValues(alpha: 0.3)
+                      : colorScheme.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
-
-              // Product Info
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Product Name
-                      Text(
-                        product.name,
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const Spacer(),
-                      // Price and Tag Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Price
-                          Text(
-                            'Rp ${_formatPrice(product.price)}',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.primary,
-                            ),
+              child: Opacity(
+                opacity: isDisabled ? 0.5 : 1.0,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Product Image
+                    AspectRatio(
+                      aspectRatio: 1.3,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
                           ),
-                          // Tag
-                          _buildTag(context),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
+                          ),
+                          child: Image.network(
+                            product.imageUrl ?? '',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                Icon(Icons.image_outlined, size: 40, color: colorScheme.outline),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Product Info
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), // Compact padding
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Product Name
+                          Text(
+                            product.name,
+                            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6), // Reduced gap
+                          // Price and Tag Row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Price
+                              Text(
+                                'Rp ${_formatPrice(product.price)}',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              // Tag
+                              _buildTag(context),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // "Stok Habis" overlay for out of stock items
+            if (isDisabled)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.red.shade600, borderRadius: BorderRadius.circular(6)),
+                  child: const Text(
+                    'Stok Habis',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

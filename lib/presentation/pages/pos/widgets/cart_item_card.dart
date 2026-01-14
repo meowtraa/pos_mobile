@@ -4,7 +4,7 @@ import '../../../../data/models/cart_item.dart';
 import '../../../../data/models/staff.dart';
 
 /// Cart Item Card Widget
-/// Displays an item in the cart with quantity control
+/// Displays an item in the cart with quantity control and subtotal
 class CartItemCard extends StatelessWidget {
   final CartItem item;
   final List<Staff> staffs;
@@ -46,44 +46,74 @@ class CartItemCard extends StatelessWidget {
               InkWell(
                 onTap: onRemove,
                 borderRadius: BorderRadius.circular(4),
-                child: Icon(Icons.close, size: 18, color: colorScheme.outline),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.close, size: 20, color: colorScheme.error),
+                ),
               ),
             ],
           ),
 
           const SizedBox(height: 4),
 
-          // Price
+          // Price per unit + Satuan
           Text(
-            'Rp ${_formatPrice(item.product.price)}',
-            style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w500),
+            'Rp ${_formatPrice(item.product.price)} / ${item.product.satuan}',
+            style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
           // Staff Dropdown (for services) and Quantity
           Row(
             children: [
-              // Staff Dropdown (for services)
+              // Staff Dropdown (for services) - styled like +/- buttons
               if (item.product.isService)
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    height: 44, // Same height as quantity buttons
                     decoration: BoxDecoration(
                       color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: colorScheme.outlineVariant),
                     ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: item.employeeId,
                         isExpanded: true,
-                        isDense: true,
-                        style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
+                        isDense: false,
+                        menuMaxHeight: 300, // Scrollable if many items
+                        menuWidth: 250, // WIDER popup menu
+                        icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.primary),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        dropdownColor: colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        // Selected value display (in button) - can truncate
+                        selectedItemBuilder: (context) {
+                          return staffs.map((staff) {
+                            return Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                staff.name,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                              ),
+                            );
+                          }).toList();
+                        },
+                        // Menu items - show FULL name, wider
                         items: staffs.map((staff) {
-                          return DropdownMenuItem(
+                          return DropdownMenuItem<String>(
                             value: staff.id.toString(),
-                            child: Text(staff.name, overflow: TextOverflow.ellipsis),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(staff.name, style: theme.textTheme.bodyMedium),
+                            ),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -99,47 +129,75 @@ class CartItemCard extends StatelessWidget {
               else
                 const Spacer(),
 
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
 
-              // Quantity Control
+              // Quantity Control - BIGGER BUTTONS
               Container(
+                height: 44, // Same height as dropdown
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: colorScheme.outlineVariant),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildQuantityButton(
-                      context,
-                      icon: Icons.remove,
-                      onTap: () => onQuantityChanged(item.quantity - 1),
-                    ),
-                    Container(
-                      constraints: const BoxConstraints(minWidth: 24),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${item.quantity}x',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    // Minus Button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => onQuantityChanged(item.quantity - 1),
+                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(9)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          alignment: Alignment.center,
+                          child: Icon(Icons.remove, size: 20, color: colorScheme.primary),
+                        ),
                       ),
                     ),
-                    _buildQuantityButton(context, icon: Icons.add, onTap: () => onQuantityChanged(item.quantity + 1)),
+                    // Quantity Display (tanpa 'x')
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 32),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${item.quantity}',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    // Plus Button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => onQuantityChanged(item.quantity + 1),
+                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(9)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          alignment: Alignment.center,
+                          child: Icon(Icons.add, size: 20, color: colorScheme.primary),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
+
+          const SizedBox(height: 12),
+
+          // Subtotal per Item
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Subtotal', style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+              Text(
+                'Rp ${_formatPrice(item.totalPrice)}',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+              ),
+            ],
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildQuantityButton(BuildContext context, {required IconData icon, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, size: 16)),
     );
   }
 

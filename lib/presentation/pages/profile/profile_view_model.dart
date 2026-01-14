@@ -1,4 +1,5 @@
 import '../../providers/base_view_model.dart';
+import '../../../core/services/session_service.dart';
 import '../../../data/models/user.dart';
 
 /// Profile View Model
@@ -12,13 +13,18 @@ class ProfileViewModel extends BaseViewModel {
     _loadUser();
   }
 
-  /// Load user data (demo)
+  /// Load user data from SessionService
   void _loadUser() {
-    _user = const User(id: '1', email: 'admin@machos.com', name: 'Admin', role: 'admin');
+    _user = SessionService.instance.currentUser;
     notifyListeners();
   }
 
-  /// Update user name
+  /// Refresh user data
+  void refresh() {
+    _loadUser();
+  }
+
+  /// Update user name (local only - for display purposes)
   void updateName(String name) {
     if (_user != null) {
       _user = User(id: _user!.id, email: _user!.email, name: name, avatarUrl: _user!.avatarUrl, role: _user!.role);
@@ -26,7 +32,7 @@ class ProfileViewModel extends BaseViewModel {
     }
   }
 
-  /// Update user email
+  /// Update user email (local only - for display purposes)
   void updateEmail(String email) {
     if (_user != null) {
       _user = User(id: _user!.id, email: email, name: _user!.name, avatarUrl: _user!.avatarUrl, role: _user!.role);
@@ -38,7 +44,7 @@ class ProfileViewModel extends BaseViewModel {
   Future<bool> saveProfile() async {
     setLoading();
     try {
-      // Simulate API call
+      // TODO: Implement actual profile update via Firebase
       await Future.delayed(const Duration(seconds: 1));
       setSuccess();
       return true;

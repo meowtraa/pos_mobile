@@ -11,6 +11,7 @@ class SessionService extends ChangeNotifier {
   static const String _keyUserEmail = 'session_user_email';
   static const String _keyUserName = 'session_user_name';
   static const String _keyUserId = 'session_user_id';
+  static const String _keyUserRole = 'session_user_role';
 
   /// Session expires after 24 hours
   static const Duration sessionDuration = Duration(hours: 24);
@@ -30,6 +31,12 @@ class SessionService extends ChangeNotifier {
   User? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null && !isSessionExpired;
   DateTime? get loginTime => _loginTime;
+
+  // Convenience getters for user data
+  String? get userId => _currentUser?.id;
+  String? get userName => _currentUser?.name;
+  String? get userEmail => _currentUser?.email;
+  String? get userRole => _currentUser?.role;
 
   /// Check if session is expired
   bool get isSessionExpired {
@@ -69,13 +76,14 @@ class SessionService extends ChangeNotifier {
     final email = _prefs?.getString(_keyUserEmail);
     final name = _prefs?.getString(_keyUserName);
     final id = _prefs?.getString(_keyUserId);
+    final role = _prefs?.getString(_keyUserRole);
 
     if (loginTimeMs != null && email != null && name != null && id != null) {
       _loginTime = DateTime.fromMillisecondsSinceEpoch(loginTimeMs);
 
       // Check if session expired
       if (!isSessionExpired) {
-        _currentUser = User(id: id, email: email, name: name, role: 'demo');
+        _currentUser = User(id: id, email: email, name: name, role: role ?? 'staff');
         notifyListeners();
       } else {
         // Session expired, clear it
@@ -96,11 +104,12 @@ class SessionService extends ChangeNotifier {
     await _prefs?.setString(_keyUserEmail, user.email);
     await _prefs?.setString(_keyUserName, user.name);
     await _prefs?.setString(_keyUserId, user.id);
+    await _prefs?.setString(_keyUserRole, user.role);
 
     notifyListeners();
 
     if (kDebugMode) {
-      print('💾 Session saved: ${user.email}');
+      print('💾 Session saved: ${user.email} (${user.role})');
       print('⏰ Session will expire at: ${_loginTime!.add(sessionDuration)}');
     }
   }
@@ -114,6 +123,7 @@ class SessionService extends ChangeNotifier {
     await _prefs?.remove(_keyUserEmail);
     await _prefs?.remove(_keyUserName);
     await _prefs?.remove(_keyUserId);
+    await _prefs?.remove(_keyUserRole);
 
     notifyListeners();
 

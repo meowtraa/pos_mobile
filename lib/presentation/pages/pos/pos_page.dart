@@ -37,11 +37,14 @@ class _POSPageState extends State<POSPage> {
         totalAmount: total,
         onCancel: () => Navigator.pop(dialogContext),
         onPaymentConfirmed: (paymentMethod, amountReceived) async {
+          // Get userId from session
+          final userId = int.tryParse(SessionService.instance.userId ?? '1') ?? 1;
+
           // Call checkout to create transaction in Firebase
           final transaction = await viewModel.checkout(
             paymentMethod: paymentMethod,
             amountReceived: amountReceived,
-            userId: 1, // TODO: Get from auth
+            userId: userId,
           );
 
           if (transaction != null) {
@@ -215,11 +218,11 @@ class _ProductsSection extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'Admin',
+                                    SessionService.instance.userName ?? 'User',
                                     style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                                   ),
                                   Text(
-                                    'Kasir',
+                                    SessionService.instance.userRole ?? 'Staff',
                                     style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                                   ),
                                 ],
@@ -274,11 +277,11 @@ class _ProductsSection extends StatelessWidget {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Admin',
+                                          SessionService.instance.userName ?? 'User',
                                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                         ),
                                         Text(
-                                          'admin@machos.com',
+                                          SessionService.instance.userEmail ?? '',
                                           style: theme.textTheme.bodySmall?.copyWith(
                                             color: colorScheme.onSurfaceVariant,
                                           ),
@@ -377,14 +380,30 @@ class _ProductsSection extends StatelessWidget {
                         padding: const EdgeInsets.all(16),
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 220,
-                          childAspectRatio: 0.75,
+                          childAspectRatio: 0.8, // Increased to reduce empty space
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
                         ),
                         itemCount: viewModel.filteredProducts.length,
                         itemBuilder: (context, index) {
                           final product = viewModel.filteredProducts[index];
-                          return ProductCard(product: product, onTap: () => viewModel.addToCart(product));
+                          final canAdd = viewModel.canAddToCart(product);
+                          return ProductCard(
+                            product: product,
+                            isDisabled: !canAdd,
+                            onTap: () {
+                              final added = viewModel.addToCart(product);
+                              if (!added && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${product.namaProduk} stok habis!'),
+                                    backgroundColor: Colors.orange,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                          );
                         },
                       ),
               ),

@@ -1,19 +1,23 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 
+import '../../../core/firebase/firebase_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../data/models/user.dart';
 import '../../providers/base_view_model.dart';
 
 /// Login View Model
-/// Handles authentication logic for Login Page with demo account
+/// Handles authentication with Firebase Auth + RTDB profile fetch
 class LoginViewModel extends BaseViewModel {
   String _email = '';
   String _password = '';
   bool _obscurePassword = true;
 
   final SessionService _sessionService = SessionService.instance;
+  final fb_auth.FirebaseAuth _auth = fb_auth.FirebaseAuth.instance;
+  final FirebaseService _firebase = FirebaseService.instance;
 
-  // Demo credentials
+  // Demo credentials (for easy testing)
   static const String demoEmail = 'demo@machos.pos';
   static const String demoPassword = '123456';
 
@@ -65,14 +69,14 @@ class LoginViewModel extends BaseViewModel {
     notifyListeners();
   }
 
-  /// Fill demo credentials
+  /// Fill demo credentials for testing
   void fillDemoCredentials() {
     _email = demoEmail;
     _password = demoPassword;
     notifyListeners();
   }
 
-  /// Login with email and password
+  /// Login with Firebase Auth + fetch profile from RTDB
   Future<bool> login() async {
     if (validateEmail(_email) != null || validatePassword(_password) != null) {
       return false;
@@ -80,47 +84,214 @@ class LoginViewModel extends BaseViewModel {
 
     setLoading();
 
-    try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
+    if (kDebugMode) {
+      print('🔐 [LOGIN] Starting login for: $_email');
+    }
 
-      // Demo account: demo@machos.pos / 123456
-      // OR any email with password "123456"
-      if (_password == demoPassword) {
+    try {
+      // Step 1: Authenticate with Firebase Auth
+      if (kDebugMode) {
+        print('🔐 [LOGIN] Step 1: Firebase Auth...');
+      }
+
+      final credential = await _auth.signInWithEmailAndPassword(email: _email.trim(), password: _password);
+
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        setError('Login gagal: User tidak ditemukan');
+        if (kDebugMode) {
+          print('❌ [LOGIN] Firebase Auth returned null user');
+        }
+        return false;
+      }
+
+      if (kDebugMode) {
+        print('✅ [LOGIN] Firebase Auth success');
+        print('   └── UID: ${firebaseUser.uid}');
+        print('   └── Email: ${firebaseUser.email}');
+        print('   └── DisplayName: ${firebaseUser.displayName}');
+      }
+
+      // Step 2: Fetch user profile from master_staffs by email
+      if (kDebugMode) {
+        print('🔐 [LOGIN] Step 2: Fetching profile from master_staffs...');
+      }
+
+      final userData = await _fetchUserByEmail(_email.trim());
+
+      if (userData == null) {
+        // User authenticated but not in master_staffs
+        if (kDebugMode) {
+          print('⚠️ [LOGIN] User not found in master_staffs, using default profile');
+        }
+
         final user = User(
-          id: '1',
-          email: _email,
-          name: _email.split('@').first.replaceAll('.', ' ').toUpperCase(),
-          role: 'demo',
+          id: firebaseUser.uid,
+          email: firebaseUser.email ?? _email,
+          name: firebaseUser.displayName ?? _email.split('@').first,
+          role: 'staff',
         );
 
-        // Save session with 24h expiry
         await _sessionService.saveSession(user);
-
         setSuccess();
 
         if (kDebugMode) {
-          print('✅ Login successful: ${user.email}');
-          print('⏰ Session expires in 24 hours');
+          print('✅ [LOGIN] Login complete (default profile)');
+          print('   └── ID: ${user.id}');
+          print('   └── Name: ${user.name}');
+          print('   └── Role: ${user.role}');
         }
 
         return true;
-      } else {
-        setError('Email atau password salah');
-        return false;
       }
+
+      // Step 3: Create user with data from master_staffs
+      if (kDebugMode) {
+        print('✅ [LOGIN] Found user in master_staffs');
+        print('   └── Data: $userData');
+      }
+
+      final user = User(
+        id: userData['id']?.toString() ?? firebaseUser.uid,
+        email: userData['email'] as String? ?? firebaseUser.email ?? _email,
+        name: userData['name'] as String? ?? firebaseUser.displayName ?? _email.split('@').first,
+        role: userData['role'] as String? ?? 'staff',
+      );
+
+      // Step 4: Save session
+      await _sessionService.saveSession(user);
+
+      setSuccess();
+
+      if (kDebugMode) {
+        print('✅ [LOGIN] Login complete!');
+        print('   └── ID: ${user.id}');
+        print('   └── Email: ${user.email}');
+        print('   └── Name: ${user.name}');
+        print('   └── Role: ${user.role}');
+      }
+
+      return true;
+    } on fb_auth.FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Email tidak terdaftar';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Password salah';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Format email tidak valid';
+          break;
+        case 'user-disabled':
+          errorMessage = 'Akun telah dinonaktifkan';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Terlalu banyak percobaan, coba lagi nanti';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'Email atau password salah';
+          break;
+        default:
+          errorMessage = 'Login gagal: ${e.message}';
+      }
+      setError(errorMessage);
+      if (kDebugMode) {
+        print('❌ [LOGIN] Firebase Auth error: ${e.code} - ${e.message}');
+      }
+      return false;
     } catch (e) {
       setError('Terjadi kesalahan: ${e.toString()}');
+      if (kDebugMode) {
+        print('❌ [LOGIN] Error: $e');
+      }
       return false;
+    }
+  }
+
+  /// Fetch user data from master_staffs by email
+  Future<Map<String, dynamic>?> _fetchUserByEmail(String email) async {
+    try {
+      if (kDebugMode) {
+        print('🔍 [LOGIN] Searching master_staffs for: $email');
+      }
+
+      final snapshot = await _firebase.get('master_staffs');
+
+      if (!snapshot.exists || snapshot.value == null) {
+        if (kDebugMode) {
+          print('⚠️ [LOGIN] master_staffs is empty or not found');
+        }
+        return null;
+      }
+
+      final data = snapshot.value;
+
+      // Handle both List and Map formats
+      if (data is List) {
+        for (var i = 0; i < data.length; i++) {
+          final item = data[i];
+          if (item != null && item is Map) {
+            final staffEmail = item['email'] as String?;
+            if (staffEmail?.toLowerCase() == email.toLowerCase()) {
+              if (kDebugMode) {
+                print('✅ [LOGIN] Found match at index $i');
+              }
+              return Map<String, dynamic>.from(item);
+            }
+          }
+        }
+      } else if (data is Map) {
+        for (var entry in data.entries) {
+          if (entry.value != null && entry.value is Map) {
+            final staffEmail = entry.value['email'] as String?;
+            if (staffEmail?.toLowerCase() == email.toLowerCase()) {
+              if (kDebugMode) {
+                print('✅ [LOGIN] Found match at key ${entry.key}');
+              }
+              return Map<String, dynamic>.from(entry.value);
+            }
+          }
+        }
+      }
+
+      if (kDebugMode) {
+        print('⚠️ [LOGIN] No matching email found in master_staffs');
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [LOGIN] Error fetching user: $e');
+      }
+      return null;
     }
   }
 
   /// Logout
   Future<void> logout() async {
+    if (kDebugMode) {
+      print('🚪 [LOGOUT] Logging out...');
+    }
+
+    try {
+      await _auth.signOut();
+      if (kDebugMode) {
+        print('✅ [LOGOUT] Firebase signOut complete');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ [LOGOUT] Firebase signOut error: $e');
+      }
+    }
     await _sessionService.clearSession();
     _email = '';
     _password = '';
     setIdle();
+
+    if (kDebugMode) {
+      print('✅ [LOGOUT] Logout complete');
+    }
   }
 
   /// Check if session is still valid

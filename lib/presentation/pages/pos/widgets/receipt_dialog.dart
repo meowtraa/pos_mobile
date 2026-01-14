@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/services/printer_service.dart';
+import '../../../../core/services/session_service.dart';
 import '../../../../data/models/transaction.dart';
 import '../../../widgets/printer_selection_dialog.dart';
 import 'receipt_widget.dart';
@@ -50,7 +51,12 @@ class ReceiptDialog extends StatelessWidget {
                   children: [
                     // Receipt Preview (scrollable)
                     Flexible(
-                      child: SingleChildScrollView(child: ReceiptWidget(transaction: transaction)),
+                      child: SingleChildScrollView(
+                        child: ReceiptWidget(
+                          transaction: transaction,
+                          cashierName: SessionService.instance.userName ?? 'Kasir',
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 16),
@@ -85,7 +91,10 @@ class ReceiptDialog extends StatelessWidget {
                         FilledButton.icon(
                           onPressed: printer.isConnected && !printer.isPrinting
                               ? () async {
-                                  final success = await printer.printReceipt(transaction: transaction);
+                                  final success = await printer.printReceipt(
+                                    transaction: transaction,
+                                    cashierName: SessionService.instance.userName ?? 'Kasir',
+                                  );
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(

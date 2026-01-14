@@ -174,8 +174,34 @@ class POSViewModel extends BaseViewModel {
     notifyListeners();
   }
 
+  /// Check if product can be added to cart
+  bool canAddToCart(Product product) {
+    // Service items can always be added
+    if (product.isService) return true;
+
+    // Check if product has stock
+    if (product.stok <= 0) return false;
+
+    // Check if adding more would exceed stock
+    final existingItem = _cartItems.firstWhere(
+      (item) => item.product.id == product.id,
+      orElse: () => CartItem(product: product, quantity: 0),
+    );
+
+    return existingItem.quantity < product.stok;
+  }
+
   /// Add product to cart
-  void addToCart(Product product) {
+  /// Returns true if added successfully, false if out of stock
+  bool addToCart(Product product) {
+    // Check if product can be added
+    if (!canAddToCart(product)) {
+      if (kDebugMode) {
+        print('⚠️ Cannot add ${product.namaProduk}: out of stock or limit reached');
+      }
+      return false;
+    }
+
     final existingIndex = _cartItems.indexWhere((item) => item.product.id == product.id);
 
     if (existingIndex != -1) {
@@ -194,6 +220,7 @@ class POSViewModel extends BaseViewModel {
       );
     }
     notifyListeners();
+    return true;
   }
 
   /// Remove item from cart
@@ -212,7 +239,18 @@ class POSViewModel extends BaseViewModel {
     final index = _cartItems.indexWhere((item) => item.product.id.toString() == productId);
 
     if (index != -1) {
-      _cartItems[index] = _cartItems[index].copyWith(quantity: quantity);
+      final item = _cartItems[index];
+
+      // Limit quantity to available stock for non-service items
+      int finalQuantity = quantity;
+      if (!item.product.isService && quantity > item.product.stok) {
+        finalQuantity = item.product.stok;
+        if (kDebugMode) {
+          print('⚠️ Quantity limited to stock: ${item.product.stok}');
+        }
+      }
+
+      _cartItems[index] = _cartItems[index].copyWith(quantity: finalQuantity);
       notifyListeners();
     }
   }
