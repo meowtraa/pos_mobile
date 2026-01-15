@@ -131,6 +131,22 @@ class TodayTransactionsDialog extends StatelessWidget {
                   },
                 ),
               ),
+
+            // Footer note
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.smartphone, size: 14, color: colorScheme.outline),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Data Transaksi Hari Ini tersimpan secara lokal di perangkat',
+                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.outline, fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

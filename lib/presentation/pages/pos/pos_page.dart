@@ -36,35 +36,45 @@ class _POSPageState extends State<POSPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => PaymentDialog(
-        totalAmount: total,
-        onCancel: () => Navigator.pop(dialogContext),
-        onPaymentConfirmed: (paymentMethod, amountReceived) async {
-          // Get userId from session
-          final userId = int.tryParse(SessionService.instance.userId ?? '1') ?? 1;
+      builder: (dialogContext) => Consumer<POSViewModel>(
+        builder: (consumerContext, vm, _) => PaymentDialog(
+          subtotal: vm.subtotal,
+          discountValue: vm.discountValue,
+          totalAmount: vm.total,
+          couponApplied: vm.couponApplied,
+          couponError: vm.couponError,
+          appliedCouponCode: vm.appliedVoucher?.kode,
+          isApplyingCoupon: vm.isApplyingCoupon,
+          onCancel: () => Navigator.pop(dialogContext),
+          onApplyCoupon: vm.applyCoupon,
+          onRemoveCoupon: vm.removeCoupon,
+          onPaymentConfirmed: (paymentMethod, amountReceived, whatsapp) async {
+            // Get userId from session
+            final userId = int.tryParse(SessionService.instance.userId ?? '1') ?? 1;
 
-          // Call checkout to create transaction in Firebase
-          final transaction = await viewModel.checkout(
-            paymentMethod: paymentMethod,
-            amountReceived: amountReceived,
-            userId: userId,
-          );
+            // Call checkout to create transaction in Firebase
+            final transaction = await vm.checkout(
+              paymentMethod: paymentMethod,
+              amountReceived: amountReceived,
+              userId: userId,
+            );
 
-          if (transaction != null) {
-            _lastTransaction = transaction;
-            // Save to today's transactions for re-printing
-            await TodayTransactionsService.instance.addTransaction(transaction);
-            // NOTE: PaymentDialog already handles Navigator.pop() in _processPayment()
-            // So we just show success dialog after a short delay
-            Future.delayed(const Duration(milliseconds: 150), () {
-              if (context.mounted) {
-                _showSuccessDialog(context, transaction);
-              }
-            });
-          }
+            if (transaction != null) {
+              _lastTransaction = transaction;
+              // Save to today's transactions for re-printing
+              await TodayTransactionsService.instance.addTransaction(transaction);
+              // NOTE: PaymentDialog already handles Navigator.pop() in _processPayment()
+              // So we just show success dialog after a short delay
+              Future.delayed(const Duration(milliseconds: 150), () {
+                if (context.mounted) {
+                  _showSuccessDialog(context, transaction);
+                }
+              });
+            }
 
-          return transaction != null;
-        },
+            return transaction != null;
+          },
+        ),
       ),
     );
   }
@@ -109,13 +119,7 @@ class _POSPageState extends State<POSPage> {
                       return CartPanel(
                         items: viewModel.cartItems,
                         staffs: viewModel.staffs,
-                        subtotal: viewModel.subtotal,
-                        discountValue: viewModel.discountValue,
                         total: viewModel.total,
-                        couponApplied: viewModel.couponApplied,
-                        couponError: viewModel.couponError,
-                        discountPercent: viewModel.discountPercent,
-                        isApplyingCoupon: viewModel.isApplyingCoupon,
                         onReset: viewModel.resetCart,
                         onCheckout: () => _showPaymentDialog(context, viewModel, viewModel.total),
                         onQuantityChanged: viewModel.updateQuantity,
@@ -123,8 +127,6 @@ class _POSPageState extends State<POSPage> {
                           viewModel.updateEmployee(productId, staff);
                         },
                         onRemoveItem: viewModel.removeFromCart,
-                        onApplyCoupon: viewModel.applyCoupon,
-                        onRemoveCoupon: viewModel.removeCoupon,
                       );
                     },
                   ),

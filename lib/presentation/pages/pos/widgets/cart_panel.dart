@@ -6,55 +6,31 @@ import 'cart_item_card.dart';
 
 /// Cart Panel Widget
 /// Minimalist right side panel showing cart items and checkout
-class CartPanel extends StatefulWidget {
+/// Note: Voucher functionality has been moved to PaymentDialog
+class CartPanel extends StatelessWidget {
   final List<CartItem> items;
   final List<Staff> staffs;
-  final double subtotal;
-  final double discountValue;
   final double total;
-  final bool couponApplied;
-  final String? couponError;
-  final double discountPercent;
   final VoidCallback onReset;
   final VoidCallback onCheckout;
   final void Function(String productId, int quantity) onQuantityChanged;
   final void Function(String productId, Staff staff) onStaffChanged;
   final void Function(String productId) onRemoveItem;
-  final Future<void> Function(String code) onApplyCoupon;
-  final VoidCallback onRemoveCoupon;
-  final bool isApplyingCoupon;
 
   const CartPanel({
     super.key,
     required this.items,
     required this.staffs,
-    required this.subtotal,
-    required this.discountValue,
     required this.total,
-    required this.couponApplied,
-    this.couponError,
-    this.discountPercent = 0,
-    this.isApplyingCoupon = false,
     required this.onReset,
     required this.onCheckout,
     required this.onQuantityChanged,
     required this.onStaffChanged,
     required this.onRemoveItem,
-    required this.onApplyCoupon,
-    required this.onRemoveCoupon,
   });
 
-  @override
-  State<CartPanel> createState() => _CartPanelState();
-}
-
-class _CartPanelState extends State<CartPanel> {
-  final _couponController = TextEditingController();
-
-  @override
-  void dispose() {
-    _couponController.dispose();
-    super.dispose();
+  String _formatPrice(double price) {
+    return price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }
 
   @override
@@ -77,9 +53,9 @@ class _CartPanelState extends State<CartPanel> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Keranjang', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                if (widget.items.isNotEmpty)
+                if (items.isNotEmpty)
                   TextButton(
-                    onPressed: widget.onReset,
+                    onPressed: onReset,
                     style: TextButton.styleFrom(foregroundColor: colorScheme.error),
                     child: const Text('Reset'),
                   ),
@@ -91,7 +67,7 @@ class _CartPanelState extends State<CartPanel> {
 
           // Cart Items
           Expanded(
-            child: widget.items.isEmpty
+            child: items.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -107,22 +83,22 @@ class _CartPanelState extends State<CartPanel> {
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: widget.items.length,
+                    itemCount: items.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final item = widget.items[index];
+                      final item = items[index];
                       return CartItemCard(
                         item: item,
-                        staffs: widget.staffs,
-                        onQuantityChanged: (qty) => widget.onQuantityChanged(item.product.id.toString(), qty),
-                        onStaffChanged: (staff) => widget.onStaffChanged(item.product.id.toString(), staff),
-                        onRemove: () => widget.onRemoveItem(item.product.id.toString()),
+                        staffs: staffs,
+                        onQuantityChanged: (qty) => onQuantityChanged(item.product.id.toString(), qty),
+                        onStaffChanged: (staff) => onStaffChanged(item.product.id.toString(), staff),
+                        onRemove: () => onRemoveItem(item.product.id.toString()),
                       );
                     },
                   ),
           ),
 
-          // Footer - Coupon, Subtotal, Discount, Total, Checkout
+          // Footer - Total & Checkout
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -134,148 +110,13 @@ class _CartPanelState extends State<CartPanel> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Voucher Input
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _couponController,
-                        enabled: !widget.couponApplied && !widget.isApplyingCoupon,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: InputDecoration(
-                          hintText: 'Kode Voucher',
-                          prefixIcon: const Icon(Icons.discount_outlined, size: 20),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          isDense: true,
-                        ),
-                        style: theme.textTheme.bodyMedium,
-                        onSubmitted: widget.items.isEmpty || widget.isApplyingCoupon
-                            ? null
-                            : (value) => widget.onApplyCoupon(value),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (widget.isApplyingCoupon)
-                      const SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(strokeWidth: 2)),
-                      )
-                    else if (widget.couponApplied)
-                      IconButton.filled(
-                        onPressed: () {
-                          _couponController.clear();
-                          widget.onRemoveCoupon();
-                        },
-                        style: IconButton.styleFrom(
-                          backgroundColor: colorScheme.errorContainer,
-                          foregroundColor: colorScheme.error,
-                        ),
-                        icon: const Icon(Icons.close, size: 20),
-                      )
-                    else
-                      FilledButton(
-                        onPressed: widget.items.isEmpty ? null : () => widget.onApplyCoupon(_couponController.text),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                        child: const Text('Pakai'),
-                      ),
-                  ],
-                ),
-
-                // Voucher Error or Success Message
-                if (widget.couponError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline, size: 16, color: colorScheme.error),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            widget.couponError!,
-                            style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.error),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (widget.couponApplied)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle, size: 16, color: colorScheme.primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Voucher berhasil diterapkan!',
-                          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                const SizedBox(height: 16),
-
-                // Subtotal - commented out since each item now shows subtotal
-                // Uncomment when PPN is implemented
-                // Row(
-                //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                //   children: [
-                //     Text('Subtotal', style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-                //     Text(
-                //       'Rp ${_formatPrice(widget.subtotal)}',
-                //       style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                //     ),
-                //   ],
-                // ),
-
-                // Discount Row (if applicable)
-                if (widget.discountValue > 0) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Diskon', style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.primary)),
-                            if (widget.discountPercent > 0)
-                              Text(
-                                ' (${widget.discountPercent.toInt()}%)',
-                                style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          '- Rp ${_formatPrice(widget.discountValue)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.end,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                const SizedBox(height: 12),
-
                 // Total
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Total', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     Text(
-                      'Rp ${_formatPrice(widget.total)}',
+                      'Rp ${_formatPrice(total)}',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: colorScheme.primary,
@@ -289,7 +130,7 @@ class _CartPanelState extends State<CartPanel> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: widget.items.isEmpty ? null : widget.onCheckout,
+                    onPressed: items.isEmpty ? null : onCheckout,
                     icon: const Icon(Icons.payments_outlined),
                     label: const Text('Bayar Sekarang'),
                     style: FilledButton.styleFrom(
@@ -304,9 +145,5 @@ class _CartPanelState extends State<CartPanel> {
         ],
       ),
     );
-  }
-
-  String _formatPrice(double price) {
-    return price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }
 }
