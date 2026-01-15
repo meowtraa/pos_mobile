@@ -2,6 +2,7 @@
 /// Represents a complete transaction in the POS system (matching Firebase structure)
 library;
 
+import 'package:intl/intl.dart';
 import '../../core/sync/sync_status.dart';
 import 'transaction_item.dart';
 
@@ -95,7 +96,7 @@ class Transaction with Syncable {
       'total_kembalian': totalKembalian,
       'metode_pembayaran': metodePembayaran,
       'status_transaksi': _statusToString(statusTransaksi),
-      'created_at': createdAt.millisecondsSinceEpoch ~/ 1000, // Unix timestamp in seconds
+      'created_at': DateFormat('yyyy-MM-dd HH:mm:ss').format(createdAt),
     };
 
     // Add optional voucher fields
