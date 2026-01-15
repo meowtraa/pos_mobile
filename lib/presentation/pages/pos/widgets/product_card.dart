@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../../data/models/product.dart';
@@ -55,12 +56,7 @@ class ProductCard extends StatelessWidget {
                             topLeft: Radius.circular(12),
                             topRight: Radius.circular(12),
                           ),
-                          child: Image.network(
-                            product.imageUrl ?? '',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                Icon(Icons.image_outlined, size: 40, color: colorScheme.outline),
-                          ),
+                          child: _buildProductImage(colorScheme),
                         ),
                       ),
                     ),
@@ -149,5 +145,30 @@ class ProductCard extends StatelessWidget {
 
   String _formatPrice(double price) {
     return price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
+  }
+
+  /// Build product image from base64 or show placeholder
+  Widget _buildProductImage(ColorScheme colorScheme) {
+    if (!product.hasImage) {
+      return Center(child: Icon(Icons.image_outlined, size: 40, color: colorScheme.outline));
+    }
+
+    try {
+      // Extract base64 data from data URI if present
+      String base64Data = product.gambar!;
+      if (base64Data.contains(',')) {
+        base64Data = base64Data.split(',').last;
+      }
+
+      final bytes = base64Decode(base64Data);
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            Center(child: Icon(Icons.broken_image_outlined, size: 40, color: colorScheme.outline)),
+      );
+    } catch (e) {
+      return Center(child: Icon(Icons.image_outlined, size: 40, color: colorScheme.outline));
+    }
   }
 }

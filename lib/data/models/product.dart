@@ -9,7 +9,8 @@ class Product {
   final int kategoriId;
   final String satuan;
   final int stok;
-  final String? imageUrl; // Optional image URL
+  final String? gambar; // Base64 image data
+  final int? lastUpdate;
 
   const Product({
     required this.id,
@@ -18,7 +19,8 @@ class Product {
     required this.kategoriId,
     required this.satuan,
     this.stok = 0,
-    this.imageUrl,
+    this.gambar,
+    this.lastUpdate,
   });
 
   // Backward compatible getters for old UI code
@@ -30,19 +32,23 @@ class Product {
   /// Check if product is a service (satuan = 'org' means it's a service)
   bool get isService => satuan == 'org';
 
-  /// Check if product is available (for non-service items)
+  /// Check if product is available (services always available, products need stock > 0)
   bool get isAvailable => isService || stok > 0;
+
+  /// Check if product has a base64 image
+  bool get hasImage => gambar != null && gambar!.isNotEmpty && gambar != 'data:image/png;base64,';
 
   /// Create from Firebase JSON
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
-      id: json['id'] as int,
-      namaProduk: json['nama_produk'] as String,
-      harga: (json['harga'] as num).toDouble(),
-      kategoriId: json['kategori_id'] as int,
-      satuan: json['satuan'] as String,
+      id: json['id'] as int? ?? 0,
+      namaProduk: json['nama_produk'] as String? ?? 'Unknown',
+      harga: (json['harga'] as num?)?.toDouble() ?? 0,
+      kategoriId: json['kategori_id'] as int? ?? 0,
+      satuan: json['satuan'] as String? ?? 'pcs',
       stok: json['stok'] as int? ?? 0,
-      imageUrl: json['image_url'] as String?,
+      gambar: json['gambar'] as String?,
+      lastUpdate: json['last_update'] as int?,
     );
   }
 
@@ -51,7 +57,7 @@ class Product {
     required String id,
     required String name,
     required double price,
-    required String imageUrl,
+    String? imageUrl,
     required String category,
     int? stock,
     bool isService = false,
@@ -63,7 +69,7 @@ class Product {
       kategoriId: isService ? 1 : 2, // 1 = jasa, 2 = produk
       satuan: isService ? 'org' : 'pcs',
       stok: stock ?? 0,
-      imageUrl: imageUrl,
+      gambar: imageUrl,
     );
   }
 
@@ -76,7 +82,8 @@ class Product {
       'kategori_id': kategoriId,
       'satuan': satuan,
       'stok': stok,
-      'image_url': imageUrl,
+      'gambar': gambar,
+      'last_update': lastUpdate ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
     };
   }
 
@@ -88,7 +95,8 @@ class Product {
     int? kategoriId,
     String? satuan,
     int? stok,
-    String? imageUrl,
+    String? gambar,
+    int? lastUpdate,
   }) {
     return Product(
       id: id ?? this.id,
@@ -97,7 +105,8 @@ class Product {
       kategoriId: kategoriId ?? this.kategoriId,
       satuan: satuan ?? this.satuan,
       stok: stok ?? this.stok,
-      imageUrl: imageUrl ?? this.imageUrl,
+      gambar: gambar ?? this.gambar,
+      lastUpdate: lastUpdate ?? this.lastUpdate,
     );
   }
 
