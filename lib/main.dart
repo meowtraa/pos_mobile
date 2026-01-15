@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'core/firebase/firebase_config.dart';
@@ -9,10 +9,14 @@ import 'core/services/printer_service.dart';
 import 'core/services/session_service.dart';
 import 'core/services/sync_manager.dart';
 import 'core/services/order_sync_service.dart';
+import 'core/services/today_transactions_service.dart';
 import 'data/repositories/transaction_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize locale for Indonesian date formatting
+  await initializeDateFormatting('id_ID', null);
 
   // Lock orientation to landscape only
   // await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
@@ -59,6 +63,18 @@ void main() async {
   } catch (e) {
     if (kDebugMode) {
       print('❌ Session initialization failed: $e');
+    }
+  }
+
+  // Initialize Today Transactions Service (for re-printing receipts)
+  try {
+    await TodayTransactionsService.instance.init();
+    if (kDebugMode) {
+      print('📋 Today transactions service initialized');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('❌ Today transactions service initialization failed: $e');
     }
   }
 

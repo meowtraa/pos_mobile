@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 // TODO: Enable when ready
 // import '../../providers/theme_view_model.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/today_transactions_service.dart';
 import '../../../data/models/transaction.dart';
 import '../../widgets/connectivity_banner.dart';
 import '../../widgets/sync_indicator.dart';
@@ -15,6 +16,7 @@ import 'widgets/print_settings_dialog.dart';
 import 'widgets/product_card.dart';
 import 'widgets/receipt_dialog.dart';
 import 'widgets/success_dialog.dart';
+import 'widgets/today_transactions_dialog.dart';
 
 /// POS Page
 /// Main Point of Sale screen
@@ -50,6 +52,8 @@ class _POSPageState extends State<POSPage> {
 
           if (transaction != null) {
             _lastTransaction = transaction;
+            // Save to today's transactions for re-printing
+            await TodayTransactionsService.instance.addTransaction(transaction);
             // NOTE: PaymentDialog already handles Navigator.pop() in _processPayment()
             // So we just show success dialog after a short delay
             Future.delayed(const Duration(milliseconds: 150), () {
@@ -197,6 +201,74 @@ class _ProductsSection extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      // Store Menu
+                      PopupMenuButton<String>(
+                        offset: const Offset(0, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor: colorScheme.primary,
+                                child: const Icon(Icons.storefront, size: 18, color: Colors.white),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Toko',
+                                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    'Manajemen',
+                                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_drop_down, color: colorScheme.onSurfaceVariant),
+                            ],
+                          ),
+                        ),
+                        onSelected: (value) {
+                          if (value == 'today_transactions') {
+                            TodayTransactionsDialog.show(context);
+                          } else if (value == 'print_settings') {
+                            PrintSettingsDialog.show(context);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'today_transactions',
+                            child: Row(
+                              children: [
+                                Icon(Icons.receipt_long, color: colorScheme.onSurface),
+                                const SizedBox(width: 12),
+                                const Text('Transaksi Hari Ini'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'print_settings',
+                            child: Row(
+                              children: [
+                                Icon(Icons.print, color: colorScheme.onSurface),
+                                const SizedBox(width: 12),
+                                const Text('Pengaturan Printer'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
                       // Profile Menu
                       PopupMenuButton<String>(
                         offset: const Offset(0, 50),
@@ -237,9 +309,6 @@ class _ProductsSection extends StatelessWidget {
                         onSelected: (value) {
                           if (value == 'profile') {
                             Navigator.pushNamed(context, '/profile');
-                          } else if (value == 'print_settings') {
-                            // Open Print Settings Dialog
-                            PrintSettingsDialog.show(context);
                           } else if (value == 'logout') {
                             showDialog(
                               context: context,
@@ -306,16 +375,6 @@ class _ProductsSection extends StatelessWidget {
                                 Icon(Icons.person_outline, color: colorScheme.onSurface),
                                 const SizedBox(width: 12),
                                 const Text('Profil Saya'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'print_settings',
-                            child: Row(
-                              children: [
-                                Icon(Icons.print, color: colorScheme.onSurface),
-                                const SizedBox(width: 12),
-                                const Text('Pengaturan Print'),
                               ],
                             ),
                           ),
