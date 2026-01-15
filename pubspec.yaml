@@ -54,6 +54,7 @@ dependencies:
 
   # Connectivity monitoring
   connectivity_plus: ^6.1.4
+  internet_connection_checker_plus: ^2.5.2
 
   # Local Storage
   shared_preferences: ^2.3.5

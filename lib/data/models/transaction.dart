@@ -15,7 +15,16 @@ class Transaction with Syncable {
   /// List of items in this transaction
   final List<TransactionItem> items;
 
-  /// Total price before payment
+  /// Subtotal before discount (if using voucher)
+  final double? subtotal;
+
+  /// Discount amount from voucher
+  final double? diskon;
+
+  /// Voucher code used (if any)
+  final String? kodeVoucher;
+
+  /// Total price (after discount)
   final double totalHarga;
 
   /// Amount paid by customer
@@ -49,6 +58,9 @@ class Transaction with Syncable {
   const Transaction({
     required this.kodeTransaksi,
     required this.items,
+    this.subtotal,
+    this.diskon,
+    this.kodeVoucher,
     required this.totalHarga,
     required this.totalBayar,
     required this.totalKembalian,
@@ -72,31 +84,42 @@ class Transaction with Syncable {
 
   /// Convert to Firebase JSON format
   Map<String, dynamic> toJson() {
-    final itemsMap = <String, dynamic>{};
-    for (int i = 0; i < items.length; i++) {
-      itemsMap['item_${i + 1}'] = items[i].toJson();
-    }
+    // Convert items to array
+    final itemsList = items.map((item) => item.toJson()).toList();
 
-    return {
+    final json = <String, dynamic>{
       'kode_transaksi': kodeTransaksi,
-      'items': itemsMap,
+      'items': itemsList,
       'total_harga': totalHarga,
       'total_bayar': totalBayar,
       'total_kembalian': totalKembalian,
       'metode_pembayaran': metodePembayaran,
       'status_transaksi': _statusToString(statusTransaksi),
-      'user_id': userId,
-      'created_at': _formatDateTime(createdAt),
+      'created_at': createdAt.millisecondsSinceEpoch ~/ 1000, // Unix timestamp in seconds
     };
+
+    // Add optional voucher fields
+    if (diskon != null && diskon! > 0) json['diskon'] = diskon;
+    if (kodeVoucher != null && kodeVoucher!.isNotEmpty) json['kode_voucher'] = kodeVoucher;
+
+    return json;
   }
 
   /// Create from Firebase JSON
   factory Transaction.fromJson(String kodeTransaksi, Map<String, dynamic> json) {
-    // Parse items from Firebase format
-    final itemsData = json['items'] as Map<Object?, Object?>?;
+    // Parse items - support both array and map format
     final items = <TransactionItem>[];
+    final itemsData = json['items'];
 
-    if (itemsData != null) {
+    if (itemsData is List) {
+      // Array format: [{...}, {...}]
+      for (final item in itemsData) {
+        if (item != null) {
+          items.add(TransactionItem.fromJson(Map<String, dynamic>.from(item as Map)));
+        }
+      }
+    } else if (itemsData is Map) {
+      // Map format: {item_1: {...}, item_2: {...}}
       itemsData.forEach((key, value) {
         if (value != null) {
           items.add(TransactionItem.fromJson(Map<String, dynamic>.from(value as Map)));
@@ -107,12 +130,15 @@ class Transaction with Syncable {
     return Transaction(
       kodeTransaksi: json['kode_transaksi'] as String? ?? kodeTransaksi,
       items: items,
+      subtotal: (json['subtotal'] as num?)?.toDouble(),
+      diskon: (json['diskon'] as num?)?.toDouble(),
+      kodeVoucher: json['kode_voucher'] as String?,
       totalHarga: (json['total_harga'] as num).toDouble(),
       totalBayar: (json['total_bayar'] as num).toDouble(),
       totalKembalian: (json['total_kembalian'] as num).toDouble(),
-      metodePembayaran: json['metode_pembayaran'] as String,
+      metodePembayaran: json['metode_pembayaran'] as String? ?? 'tunai',
       statusTransaksi: _stringToStatus(json['status_transaksi'] as String?),
-      userId: json['user_id'] as int,
+      userId: json['user_id'] as int? ?? 0,
       createdAt: _parseDateTime(json['created_at']),
       syncStatus: SyncStatus.synced,
     );
@@ -122,6 +148,9 @@ class Transaction with Syncable {
   Transaction copyWith({
     String? kodeTransaksi,
     List<TransactionItem>? items,
+    double? subtotal,
+    double? diskon,
+    String? kodeVoucher,
     double? totalHarga,
     double? totalBayar,
     double? totalKembalian,
@@ -136,6 +165,9 @@ class Transaction with Syncable {
     return Transaction(
       kodeTransaksi: kodeTransaksi ?? this.kodeTransaksi,
       items: items ?? this.items,
+      subtotal: subtotal ?? this.subtotal,
+      diskon: diskon ?? this.diskon,
+      kodeVoucher: kodeVoucher ?? this.kodeVoucher,
       totalHarga: totalHarga ?? this.totalHarga,
       totalBayar: totalBayar ?? this.totalBayar,
       totalKembalian: totalKembalian ?? this.totalKembalian,
@@ -172,15 +204,15 @@ class Transaction with Syncable {
     }
   }
 
-  static String _formatDateTime(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
-  }
-
   static DateTime _parseDateTime(dynamic value) {
     if (value is String) {
       return DateTime.parse(value.replaceFirst(' ', 'T'));
     } else if (value is int) {
+      // Handle both milliseconds and seconds timestamp
+      // If value is less than year 2100 in milliseconds, it's likely in seconds
+      if (value < 4102444800) {
+        return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+      }
       return DateTime.fromMillisecondsSinceEpoch(value);
     }
     return DateTime.now();

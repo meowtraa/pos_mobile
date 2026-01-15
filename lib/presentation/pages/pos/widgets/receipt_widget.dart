@@ -93,8 +93,12 @@ class ReceiptWidget extends StatelessWidget {
           _buildDottedLine(),
           const SizedBox(height: 12),
 
-          // Subtotal
-          _buildTotalRow('SUBTOTAL', transaction.totalHarga),
+          // Subtotal, Discount, Total
+          _buildTotalRow('SUBTOTAL', _getSubtotal()),
+          if (transaction.diskon != null && transaction.diskon! > 0) ...[
+            const SizedBox(height: 4),
+            _buildDiscountRow('DISKON', transaction.diskon!, transaction.kodeVoucher),
+          ],
           const SizedBox(height: 4),
           _buildTotalRow('TOTAL', transaction.totalHarga, isBold: true),
 
@@ -193,6 +197,42 @@ class ReceiptWidget extends StatelessWidget {
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
             color: Colors.black87,
           ),
+        ),
+      ],
+    );
+  }
+
+  /// Calculate subtotal (before discount)
+  double _getSubtotal() {
+    // If subtotal is stored, use it; otherwise calculate from total + discount
+    if (transaction.subtotal != null) {
+      return transaction.subtotal!;
+    }
+    // If no subtotal stored, add back the discount to get original subtotal
+    return transaction.totalHarga + (transaction.diskon ?? 0);
+  }
+
+  /// Build discount row with voucher code
+  Widget _buildDiscountRow(String label, double value, String? voucherCode) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontFamily: 'Courier', fontSize: 11, color: Colors.black87),
+            ),
+            if (voucherCode != null && voucherCode.isNotEmpty)
+              Text(
+                ' ($voucherCode)',
+                style: const TextStyle(fontFamily: 'Courier', fontSize: 10, color: Colors.black54),
+              ),
+          ],
+        ),
+        Text(
+          '- Rp ${_formatPrice(value)}',
+          style: const TextStyle(fontFamily: 'Courier', fontSize: 11, color: Colors.black87),
         ),
       ],
     );

@@ -396,8 +396,18 @@ class PrinterService extends ChangeNotifier {
       // Dashed line
       await printLine('-' * effectiveWidth);
 
-      // Subtotal & Total
-      await _printTotalLine('SUBTOTAL', transaction.totalHarga, effectiveWidth, indent);
+      // Subtotal, Discount & Total
+      final subtotalValue = _getSubtotal(transaction);
+      await _printTotalLine('SUBTOTAL', subtotalValue, effectiveWidth, indent);
+
+      // Show discount if available
+      if (transaction.diskon != null && transaction.diskon! > 0) {
+        final discountLabel = transaction.kodeVoucher != null && transaction.kodeVoucher!.isNotEmpty
+            ? 'DISKON (${transaction.kodeVoucher})'
+            : 'DISKON';
+        await _printDiscountLine(discountLabel, transaction.diskon!, effectiveWidth, indent);
+      }
+
       await _printTotalLine('TOTAL', transaction.totalHarga, effectiveWidth, indent);
 
       // Dashed line
@@ -447,5 +457,27 @@ class PrinterService extends ChangeNotifier {
 
   String _formatPrice(double price) {
     return NumberFormat('#,###', 'id_ID').format(price).replaceAll(',', '.');
+  }
+
+  /// Calculate subtotal (before discount)
+  double _getSubtotal(Transaction transaction) {
+    // If subtotal is stored, use it; otherwise calculate from total + discount
+    if (transaction.subtotal != null) {
+      return transaction.subtotal!;
+    }
+    // If no subtotal stored, add back the discount to get original subtotal
+    return transaction.totalHarga + (transaction.diskon ?? 0);
+  }
+
+  /// Helper for printing discount line with minus sign
+  Future<void> _printDiscountLine(String label, double value, int width, String indent) async {
+    final valueStr = '- Rp ${_formatPrice(value)}';
+    final spacesCount = width - label.length - valueStr.length;
+    final spaces = ' ' * (spacesCount > 0 ? spacesCount : 1);
+    final line = label + spaces + valueStr;
+
+    // Ensure left align
+    await PrintBluetoothThermal.writeBytes(_escAlignLeft);
+    await PrintBluetoothThermal.writeString(printText: PrintTextSize(size: 1, text: "$line\n"));
   }
 }

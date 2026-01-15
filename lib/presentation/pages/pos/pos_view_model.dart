@@ -387,6 +387,9 @@ class POSViewModel extends BaseViewModel {
       final transaction = model.Transaction(
         kodeTransaksi: kodeTransaksi,
         items: items,
+        subtotal: _couponApplied ? subtotal : null,
+        diskon: _couponApplied ? discountValue : null,
+        kodeVoucher: _couponApplied ? _appliedVoucher?.kode : null,
         totalHarga: total,
         totalBayar: amountReceived,
         totalKembalian: amountReceived - total,
