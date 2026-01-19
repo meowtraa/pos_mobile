@@ -421,6 +421,7 @@ class PrinterService extends ChangeNotifier {
 
       // Footer (CENTER)
       await printCentered('Terima Kasih');
+      await PrintBluetoothThermal.writeString(printText: PrintTextSize(size: 1, text: "$enter"));
       await PrintBluetoothThermal.writeString(printText: PrintTextSize(size: 1, text: "$enter$enter$enter"));
 
       // Reset to normal line spacing

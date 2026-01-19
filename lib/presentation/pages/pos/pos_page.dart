@@ -423,6 +423,7 @@ class _ProductsSection extends StatelessWidget {
                   const SizedBox(height: 16),
                   // Category Chips
                   CategoryChips(
+                    categories: viewModel.categories,
                     selectedCategoryId: viewModel.selectedCategoryId,
                     onCategoryChanged: viewModel.setCategory,
                   ),

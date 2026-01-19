@@ -27,8 +27,8 @@ class Voucher {
   /// Minimum transaction amount to use this voucher
   final double minTransaksi;
 
-  /// Remaining usage quota
-  final int kuota;
+  /// Remaining usage quota (null = unlimited)
+  final int? kuota;
 
   /// Start date (null = no date restriction)
   final DateTime? tanggalMulai;
@@ -53,7 +53,7 @@ class Voucher {
     required this.nilai,
     this.maxPotongan = 0,
     this.minTransaksi = 0,
-    this.kuota = 0,
+    this.kuota, // Nullable, default null means unlimited
     this.tanggalMulai,
     this.tanggalSelesai,
     this.jamMulai,
@@ -70,8 +70,8 @@ class Voucher {
       return VoucherValidationResult.invalid('Voucher tidak aktif');
     }
 
-    // Check quota
-    if (kuota <= 0) {
+    // Check quota (skip if null = unlimited)
+    if (kuota != null && kuota! <= 0) {
       return VoucherValidationResult.invalid('Kuota voucher sudah habis');
     }
 
@@ -180,7 +180,7 @@ class Voucher {
       'nilai': nilai,
       'max_potongan': maxPotongan,
       'min_transaksi': minTransaksi,
-      'kuota': kuota.toString(),
+      'kuota': kuota?.toString(), // Null if unlimited
       'tanggal_mulai': tanggalMulai != null
           ? '${tanggalMulai!.year}-${tanggalMulai!.month.toString().padLeft(2, '0')}-${tanggalMulai!.day.toString().padLeft(2, '0')}'
           : null,
@@ -232,10 +232,11 @@ class Voucher {
     return VoucherType.nominal;
   }
 
-  static int _parseKuota(dynamic kuota) {
+  static int? _parseKuota(dynamic kuota) {
+    if (kuota == null || kuota == 'null') return null; // Handle null explicitly
     if (kuota is int) return kuota;
-    if (kuota is String) return int.tryParse(kuota) ?? 0;
-    return 0;
+    if (kuota is String) return int.tryParse(kuota); // Can return null
+    return null;
   }
 
   static DateTime? _parseDate(dynamic value) {

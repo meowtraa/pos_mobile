@@ -40,15 +40,29 @@ class Product {
 
   /// Create from Firebase JSON
   factory Product.fromJson(Map<String, dynamic> json) {
+    // Helper to safe parse int
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    // Helper to safe parse double
+    double parseDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
     return Product(
-      id: json['id'] as int? ?? 0,
+      id: parseInt(json['id']),
       namaProduk: json['nama_produk'] as String? ?? 'Unknown',
-      harga: (json['harga'] as num?)?.toDouble() ?? 0,
-      kategoriId: json['kategori_id'] as int? ?? 0,
+      harga: parseDouble(json['harga']),
+      kategoriId: parseInt(json['kategori_id']),
       satuan: json['satuan'] as String? ?? 'pcs',
-      stok: json['stok'] as int? ?? 0,
+      stok: parseInt(json['stok']),
       gambar: json['gambar'] as String?,
-      lastUpdate: json['last_update'] as int?,
+      lastUpdate: parseInt(json['last_update']),
     );
   }
 

@@ -20,10 +20,18 @@ class Category {
 
   /// Create from Firebase JSON
   factory Category.fromJson(Map<String, dynamic> json) {
+    // Safe parsing for ID
+    int id = 0;
+    if (json['id'] is int) {
+      id = json['id'];
+    } else if (json['id'] is String) {
+      id = int.tryParse(json['id']) ?? 0;
+    }
+
     return Category(
-      id: json['id'] as int,
-      namaKategori: json['nama_kategori'] as String,
-      tipe: json['tipe'] == 'jasa' ? CategoryType.jasa : CategoryType.produk,
+      id: id,
+      namaKategori: json['nama_kategori'] as String? ?? 'Unknown',
+      tipe: (json['tipe'] as String?)?.toLowerCase() == 'produk' ? CategoryType.produk : CategoryType.jasa,
     );
   }
 

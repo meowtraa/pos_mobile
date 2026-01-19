@@ -34,6 +34,20 @@ class TodayTransactionsService extends ChangeNotifier {
     return _transactions.fold(0, (sum, t) => sum + t.totalHarga);
   }
 
+  /// Calculate cash revenue for today (Tunai)
+  double get totalCashRevenue {
+    return _transactions
+        .where((t) => t.metodePembayaran.toLowerCase() == 'tunai')
+        .fold(0, (sum, t) => sum + t.totalHarga);
+  }
+
+  /// Calculate non-cash revenue for today (QRIS, Card, etc.)
+  double get totalNonCashRevenue {
+    return _transactions
+        .where((t) => t.metodePembayaran.toLowerCase() != 'tunai')
+        .fold(0, (sum, t) => sum + t.totalHarga);
+  }
+
   /// Initialize service
   Future<void> init() async {
     if (_isInitialized) return;

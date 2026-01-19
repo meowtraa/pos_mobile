@@ -109,19 +109,26 @@ class VoucherRepository {
       final upperCode = code.toUpperCase().trim();
       final voucher = await getVoucherByCode(upperCode);
 
-      if (voucher == null || voucher.kuota <= 0) {
+      // Check if voucher has quota (skip if null/unlimited)
+      if (voucher == null || (voucher.kuota != null && voucher.kuota! <= 0)) {
         return false;
       }
 
-      // Decrease quota using update with Map
-      final newKuota = voucher.kuota - 1;
-      await _firebase.update('$_vouchersPath/$upperCode', {
-        'kuota': newKuota.toString(),
-        'updated_at': DateTime.now().millisecondsSinceEpoch,
-      });
+      // Decrease quota using update with Map ONLY if not unlimited (null)
+      if (voucher.kuota != null) {
+        final newKuota = voucher.kuota! - 1;
+        await _firebase.update('$_vouchersPath/$upperCode', {
+          'kuota': newKuota.toString(),
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        });
 
-      if (kDebugMode) {
-        print('🎫 Voucher used: $upperCode (remaining quota: $newKuota)');
+        if (kDebugMode) {
+          print('🎫 Voucher used: $upperCode (remaining quota: $newKuota)');
+        }
+      } else {
+        if (kDebugMode) {
+          print('🎫 Voucher used: $upperCode (Unlimited)');
+        }
       }
 
       return true;

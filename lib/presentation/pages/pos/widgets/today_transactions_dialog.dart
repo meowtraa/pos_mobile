@@ -83,12 +83,20 @@ class TodayTransactionsDialog extends StatelessWidget {
                           icon: Icons.shopping_cart,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _StatCard(
-                          label: 'Total',
-                          value: 'Rp ${_formatPrice(service.totalRevenue)}',
-                          icon: Icons.attach_money,
+                          label: 'Tunai',
+                          value: 'Rp ${_formatPrice(service.totalCashRevenue)}',
+                          icon: Icons.payments,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          label: 'Non Tunai',
+                          value: 'Rp ${_formatPrice(service.totalNonCashRevenue)}',
+                          icon: Icons.credit_card,
                         ),
                       ),
                     ],
