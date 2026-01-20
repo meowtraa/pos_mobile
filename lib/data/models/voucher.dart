@@ -154,20 +154,28 @@ class Voucher {
   /// Create from Firebase JSON
   factory Voucher.fromJson(String code, Map<String, dynamic> json) {
     return Voucher(
-      id: json['id'] as int? ?? 0,
+      id: _parseNum(json['id'])?.toInt() ?? 0,
       kode: json['kode'] as String? ?? code,
       aktif: json['aktif'] as bool? ?? false,
       tipe: _parseType(json['tipe'] as String?),
-      nilai: (json['nilai'] as num?)?.toDouble() ?? 0,
-      maxPotongan: (json['max_potongan'] as num?)?.toDouble() ?? 0,
-      minTransaksi: (json['min_transaksi'] as num?)?.toDouble() ?? 0,
+      nilai: _parseNum(json['nilai'])?.toDouble() ?? 0,
+      maxPotongan: _parseNum(json['max_potongan'])?.toDouble() ?? 0,
+      minTransaksi: _parseNum(json['min_transaksi'])?.toDouble() ?? 0,
       kuota: _parseKuota(json['kuota']),
       tanggalMulai: _parseDate(json['tanggal_mulai']),
       tanggalSelesai: _parseDate(json['tanggal_selesai']),
       jamMulai: json['jam_mulai'] as String?,
       jamSelesai: json['jam_selesai'] as String?,
-      updatedAt: json['updated_at'] as int?,
+      updatedAt: _parseNum(json['updated_at'])?.toInt(),
     );
+  }
+
+  /// Parse num from dynamic (handles String or num)
+  static num? _parseNum(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value;
+    if (value is String) return num.tryParse(value);
+    return null;
   }
 
   /// Convert to Firebase JSON

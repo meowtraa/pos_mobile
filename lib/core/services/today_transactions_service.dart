@@ -61,22 +61,42 @@ class TodayTransactionsService extends ChangeNotifier {
     }
   }
 
-  /// Check if date changed and load transactions
-  Future<void> _checkAndLoadTransactions() async {
+  /// Check and cleanup old transactions
+  /// Removes transactions that are not from today
+  Future<void> checkAndCleanup() async {
     final today = _getDateString(DateTime.now());
-    final savedDate = _prefs?.getString(_dateKey);
 
-    if (savedDate != today) {
-      // Different day - clear old data
-      if (kDebugMode) {
-        print('📋 New day detected. Clearing old transactions.');
-      }
-      await _clear();
-      await _prefs?.setString(_dateKey, today);
-    } else {
-      // Same day - load existing data
+    // Load first if empty (might be first run)
+    if (_transactions.isEmpty) {
       await _loadTransactions();
     }
+
+    if (kDebugMode) {
+      print('📋 Checking for old transactions. Today is $today');
+    }
+
+    // Filter out transactions that are not from today
+    final initialCount = _transactions.length;
+    _transactions.removeWhere((t) => _getDateString(t.createdAt) != today);
+
+    if (_transactions.length != initialCount) {
+      if (kDebugMode) {
+        print('♻️ Cleaned up ${initialCount - _transactions.length} old transactions');
+      }
+      await _saveTransactions();
+      await _prefs?.setString(_dateKey, today);
+      notifyListeners();
+    } else {
+      // Just update date key to ensure it's current
+      if (_prefs?.getString(_dateKey) != today) {
+        await _prefs?.setString(_dateKey, today);
+      }
+    }
+  }
+
+  /// Check if date changed and load transactions
+  Future<void> _checkAndLoadTransactions() async {
+    await checkAndCleanup();
   }
 
   /// Add a transaction to today's list
@@ -101,13 +121,9 @@ class TodayTransactionsService extends ChangeNotifier {
 
   /// Clear all transactions
   Future<void> clear() async {
-    await _clear();
-    notifyListeners();
-  }
-
-  Future<void> _clear() async {
     _transactions.clear();
     await _prefs?.remove(_storageKey);
+    notifyListeners();
   }
 
   /// Load transactions from SharedPreferences

@@ -96,6 +96,7 @@ class Transaction with Syncable {
       'total_kembalian': totalKembalian,
       'metode_pembayaran': metodePembayaran,
       'status_transaksi': _statusToString(statusTransaksi),
+      'user_id': userId,
       'created_at': DateFormat('yyyy-MM-dd HH:mm:ss').format(createdAt),
     };
 

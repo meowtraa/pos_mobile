@@ -1,3 +1,23 @@
+
+import java.util.Properties
+import java.io.FileInputStream
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+
+val flutterVersionCode = localProperties.getProperty("flutter.versionCode")
+if (flutterVersionCode == null) {
+    throw GradleException("versionCode not found. Define flutter.versionCode in the local.properties file.")
+}
+
+val flutterVersionName = localProperties.getProperty("flutter.versionName")
+if (flutterVersionName == null) {
+    throw GradleException("versionName not found. Define flutter.versionName in the local.properties file.")
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -27,8 +47,8 @@ android {
         minSdk = 28
         // Target SDK 34 (Android 14) - Latest stable
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = flutterVersionCode.toInt()
+        versionName = flutterVersionName
         
         // Enable multidex for larger apps
         multiDexEnabled = true
@@ -39,6 +59,17 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            if (variant.buildType.name == "release") {
+                output.outputFileName = "Macho's POS v${variant.versionName}.apk"
+            }
         }
     }
 }

@@ -370,6 +370,8 @@ class POSViewModel extends BaseViewModel {
       final kodeTransaksi = _transactionRepo.generateTransactionCode();
 
       // Create transaction items
+      // For services: use selected kapster's userId (can be null if not selected)
+      // For products: always use cashier's userId
       final items = _cartItems
           .map(
             (cartItem) => TransactionItem(
@@ -378,7 +380,10 @@ class POSViewModel extends BaseViewModel {
               hargaSatuan: cartItem.product.harga,
               jumlah: cartItem.quantity,
               subtotal: cartItem.totalPrice,
-              userId: cartItem.employeeId != null ? int.tryParse(cartItem.employeeId!) : null,
+              userId: cartItem.product.isService
+                  ? (cartItem.employeeId != null ? int.tryParse(cartItem.employeeId!) : null)
+                  : userId, // Product always uses cashier ID
+              jmlKepala: cartItem.product.jmlKepala ?? 1,
             ),
           )
           .toList();

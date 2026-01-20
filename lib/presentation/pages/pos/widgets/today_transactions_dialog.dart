@@ -7,11 +7,27 @@ import 'receipt_dialog.dart';
 
 /// Today Transactions Dialog
 /// Shows list of today's transactions with ability to re-print receipts
-class TodayTransactionsDialog extends StatelessWidget {
+/// Today Transactions Dialog
+/// Shows list of today's transactions with ability to re-print receipts
+class TodayTransactionsDialog extends StatefulWidget {
   const TodayTransactionsDialog({super.key});
 
   static void show(BuildContext context) {
     showDialog(context: context, builder: (context) => const TodayTransactionsDialog());
+  }
+
+  @override
+  State<TodayTransactionsDialog> createState() => _TodayTransactionsDialogState();
+}
+
+class _TodayTransactionsDialogState extends State<TodayTransactionsDialog> {
+  @override
+  void initState() {
+    super.initState();
+    // Ensure data is fresh and clean up old transactions immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      TodayTransactionsService.instance.checkAndCleanup();
+    });
   }
 
   String _formatPrice(double price) {
@@ -22,142 +38,152 @@ class TodayTransactionsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final service = TodayTransactionsService.instance;
-    final transactions = service.transactions;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 400,
-        constraints: const BoxConstraints(maxHeight: 500),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-                border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
-              ),
-              child: Column(
-                children: [
-                  Row(
+    // Listen to service changes
+    return ListenableBuilder(
+      listenable: TodayTransactionsService.instance,
+      builder: (context, _) {
+        final service = TodayTransactionsService.instance;
+        final transactions = service.transactions;
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 400,
+            constraints: const BoxConstraints(maxHeight: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+                    border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+                  ),
+                  child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: colorScheme.primary,
-                        child: const Icon(Icons.receipt_long, size: 20, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Transaksi Hari Ini',
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: colorScheme.primary,
+                            child: const Icon(Icons.receipt_long, size: 20, color: Colors.white),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Transaksi Hari Ini',
+                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(DateTime.now()),
+                                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                ),
+                              ],
                             ),
-                            Text(
-                              DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(DateTime.now()),
-                              style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: Icon(Icons.close, color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.close, color: colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 12),
+                      // Stats
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _StatCard(
+                              label: 'Transaksi',
+                              value: service.count.toString(),
+                              icon: Icons.shopping_cart,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _StatCard(
+                              label: 'Tunai',
+                              value: 'Rp ${_formatPrice(service.totalCashRevenue)}',
+                              icon: Icons.payments,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _StatCard(
+                              label: 'Non Tunai',
+                              value: 'Rp ${_formatPrice(service.totalNonCashRevenue)}',
+                              icon: Icons.credit_card,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  // Stats
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Transaksi',
-                          value: service.count.toString(),
-                          icon: Icons.shopping_cart,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Tunai',
-                          value: 'Rp ${_formatPrice(service.totalCashRevenue)}',
-                          icon: Icons.payments,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Non Tunai',
-                          value: 'Rp ${_formatPrice(service.totalNonCashRevenue)}',
-                          icon: Icons.credit_card,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+                ),
 
-            // Transactions List
-            if (transactions.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(40),
-                child: Column(
-                  children: [
-                    Icon(Icons.receipt_long, size: 48, color: colorScheme.outline),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Belum ada transaksi hari ini',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                // Transactions List
+                if (transactions.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      children: [
+                        Icon(Icons.receipt_long, size: 48, color: colorScheme.outline),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Belum ada transaksi hari ini',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              )
-            else
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: transactions.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final transaction = transactions[index];
-                    return _TransactionTile(
-                      transaction: transaction,
-                      onPrint: () {
-                        Navigator.pop(context);
-                        ReceiptDialog.show(context, transaction: transaction);
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: transactions.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final transaction = transactions[index];
+                        return _TransactionTile(
+                          transaction: transaction,
+                          onPrint: () {
+                            Navigator.pop(context);
+                            ReceiptDialog.show(context, transaction: transaction);
+                          },
+                        );
                       },
-                    );
-                  },
-                ),
-              ),
-
-            // Footer note
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.smartphone, size: 14, color: colorScheme.outline),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Data Transaksi Hari Ini tersimpan secara lokal di perangkat',
-                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.outline, fontStyle: FontStyle.italic),
+                    ),
                   ),
-                ],
-              ),
+
+                // Footer note
+                // Padding(
+                //   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                //   child: Row(
+                //     mainAxisAlignment: MainAxisAlignment.center,
+                //     children: [
+                //       Icon(Icons.smartphone, size: 14, color: colorScheme.outline),
+                //       const SizedBox(width: 6),
+                //       Text(
+                //         'Data Transaksi Hari Ini tersimpan secara lokal di perangkat',
+                //         style: theme.textTheme.bodySmall?.copyWith(
+                //           color: colorScheme.outline,
+                //           fontStyle: FontStyle.italic,
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

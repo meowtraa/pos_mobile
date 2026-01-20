@@ -11,6 +11,7 @@ class Product {
   final int stok;
   final String? gambar; // Base64 image data
   final int? lastUpdate;
+  final int? jmlKepala; // Jumlah kepala (from backend)
 
   const Product({
     required this.id,
@@ -21,16 +22,20 @@ class Product {
     this.stok = 0,
     this.gambar,
     this.lastUpdate,
+    this.jmlKepala,
   });
 
   // Backward compatible getters for old UI code
   String get name => namaProduk;
   double get price => harga;
   int get stock => stok;
-  String get category => kategoriId == 1 ? 'Layanan Barber' : 'Produk';
+  int get category => kategoriId;
 
-  /// Check if product is a service (satuan = 'org' means it's a service)
-  bool get isService => satuan == 'org';
+  /// Check if product is a service (satuan = 'org' or 'orang' means it's a service)
+  bool get isService {
+    final s = satuan.toLowerCase();
+    return s == 'org' || s == 'orang';
+  }
 
   /// Check if product is available (services always available, products need stock > 0)
   bool get isAvailable => isService || stok > 0;
@@ -63,6 +68,7 @@ class Product {
       stok: parseInt(json['stok']),
       gambar: json['gambar'] as String?,
       lastUpdate: parseInt(json['last_update']),
+      jmlKepala: json['jml_kepala'] != null ? parseInt(json['jml_kepala']) : 1,
     );
   }
 
@@ -89,7 +95,7 @@ class Product {
 
   /// Convert to Firebase JSON
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'nama_produk': namaProduk,
       'harga': harga,
@@ -99,6 +105,8 @@ class Product {
       'gambar': gambar,
       'last_update': lastUpdate ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
     };
+    if (jmlKepala != null) map['jml_kepala'] = jmlKepala;
+    return map;
   }
 
   /// Copy with new values
@@ -111,6 +119,7 @@ class Product {
     int? stok,
     String? gambar,
     int? lastUpdate,
+    int? jmlKepala,
   }) {
     return Product(
       id: id ?? this.id,
@@ -121,6 +130,7 @@ class Product {
       stok: stok ?? this.stok,
       gambar: gambar ?? this.gambar,
       lastUpdate: lastUpdate ?? this.lastUpdate,
+      jmlKepala: jmlKepala ?? this.jmlKepala,
     );
   }
 
