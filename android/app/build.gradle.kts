@@ -62,13 +62,29 @@ android {
         }
     }
 
+    // Product Flavors for different environments
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "Machos POS (Dev)")
+        }
+        create("prod") {
+            dimension = "environment"
+            resValue("string", "app_name", "Machos POS")
+        }
+    }
+
 
     applicationVariants.all {
         val variant = this
         variant.outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             if (variant.buildType.name == "release") {
-                output.outputFileName = "Macho's POS v${variant.versionName}.apk"
+                val flavorName = variant.flavorName.replaceFirstChar { it.uppercase() }
+                output.outputFileName = "Macho's POS ${flavorName} v${variant.versionName}.apk"
             }
         }
     }
