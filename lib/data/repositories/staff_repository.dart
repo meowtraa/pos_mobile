@@ -12,11 +12,34 @@ class StaffRepository {
   static StaffRepository? _instance;
   final FirebaseService _firebase = FirebaseService.instance;
 
+  // Cached staff list for quick lookups
+  List<Staff> _cachedStaffs = [];
+
   StaffRepository._();
 
   static StaffRepository get instance {
     _instance ??= StaffRepository._();
     return _instance!;
+  }
+
+  /// Get kapster name by user_id (uses cached list for efficiency)
+  /// Returns null if not found OR if user is not a kapster
+  String? getKapsterNameById(int? userId) {
+    if (userId == null) return null;
+    try {
+      final staff = _cachedStaffs.firstWhere((s) => s.id == userId);
+      // Only return name if staff is a kapster (not cashier/admin)
+      return staff.isKapster ? staff.name : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Ensure staff cache is populated
+  Future<void> ensureCacheLoaded() async {
+    if (_cachedStaffs.isEmpty) {
+      _cachedStaffs = await getStaffs();
+    }
   }
 
   /// Get the staffs path (master_staffs is an array in Firebase)
@@ -54,6 +77,9 @@ class StaffRepository {
       if (kDebugMode) {
         print('✅ Loaded ${staffs.length} staffs');
       }
+
+      // Update cache
+      _cachedStaffs = staffs;
 
       return staffs;
     } catch (e) {

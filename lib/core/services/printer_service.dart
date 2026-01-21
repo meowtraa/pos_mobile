@@ -7,6 +7,7 @@ import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/transaction.dart';
+import '../../data/repositories/staff_repository.dart';
 
 /// Printer Service
 /// Handles Bluetooth thermal printer connection and printing
@@ -380,6 +381,16 @@ class PrinterService extends ChangeNotifier {
       for (var item in transaction.items) {
         // Product name
         await printLine(item.namaProduk);
+
+        // Show kapster name for service items
+        // First try stored kapsterName, then lookup by userId
+        String? kapsterName = item.kapsterName;
+        if ((kapsterName == null || kapsterName.isEmpty) && item.userId != null) {
+          kapsterName = StaffRepository.instance.getKapsterNameById(item.userId);
+        }
+        if (kapsterName != null && kapsterName.isNotEmpty) {
+          await printLine('  Kapster: $kapsterName');
+        }
 
         // Quantity x Price = Subtotal
         final qtyPrice = '${item.jumlah} x ${_formatPrice(item.hargaSatuan)}';

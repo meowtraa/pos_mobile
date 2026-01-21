@@ -9,6 +9,7 @@ class TransactionItem {
   final int jumlah;
   final double subtotal;
   final int? userId; // Staff/kapster ID for services
+  final String? kapsterName; // Staff/kapster name for services
   final int jmlKepala; // Jumlah kepala per item
 
   const TransactionItem({
@@ -18,6 +19,7 @@ class TransactionItem {
     required this.jumlah,
     required this.subtotal,
     this.userId,
+    this.kapsterName,
     this.jmlKepala = 1,
   });
 
@@ -37,6 +39,7 @@ class TransactionItem {
       jumlah: json['qty'] as int? ?? json['jumlah'] as int,
       subtotal: (json['subtotal'] as num).toDouble(),
       userId: json['user_id'] as int?,
+      kapsterName: json['kapster_name'] as String?,
       jmlKepala: json['jml_kepala'] != null ? _parseInt(json['jml_kepala']) : 1,
     );
   }
@@ -53,6 +56,8 @@ class TransactionItem {
     if (userId != null) {
       map['user_id'] = userId;
     }
+    // Note: kapster_name is NOT saved to Firebase
+    // It will be looked up from user_id when displaying
     return map;
   }
 
@@ -64,6 +69,7 @@ class TransactionItem {
     int? jumlah,
     double? subtotal,
     int? userId,
+    String? kapsterName,
     int? jmlKepala,
   }) {
     return TransactionItem(
@@ -73,6 +79,7 @@ class TransactionItem {
       jumlah: jumlah ?? this.jumlah,
       subtotal: subtotal ?? this.subtotal,
       userId: userId ?? this.userId,
+      kapsterName: kapsterName ?? this.kapsterName,
       jmlKepala: jmlKepala ?? this.jmlKepala,
     );
   }

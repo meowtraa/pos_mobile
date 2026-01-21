@@ -42,6 +42,14 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   }
 }
 
+/// Formatter untuk mengubah text menjadi uppercase
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(text: newValue.text.toUpperCase(), selection: newValue.selection);
+  }
+}
+
 /// Payment Dialog Widget - New Design V2
 /// Layout:
 /// 1. Header & Total
@@ -259,6 +267,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                                   controller: _voucherController,
                                   enabled: !widget.couponApplied && !widget.isApplyingCoupon && !_isProcessing,
                                   textCapitalization: TextCapitalization.characters,
+                                  inputFormatters: [UpperCaseTextFormatter()],
                                   decoration: InputDecoration(
                                     hintText: 'Kode',
                                     prefixIcon: const Icon(Icons.local_offer_outlined, size: 20),

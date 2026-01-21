@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../data/models/transaction.dart';
 import '../../../../data/models/transaction_item.dart';
+import '../../../../data/repositories/staff_repository.dart';
 
 /// Receipt Widget
 /// Displays a receipt with barbershop style formatting
@@ -149,6 +150,12 @@ class ReceiptWidget extends StatelessWidget {
   }
 
   Widget _buildItemRow(TransactionItem item) {
+    // Get kapster name: first try stored name, then lookup by userId
+    String? kapsterName = item.kapsterName;
+    if ((kapsterName == null || kapsterName.isEmpty) && item.userId != null) {
+      kapsterName = StaffRepository.instance.getKapsterNameById(item.userId);
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Column(
@@ -158,6 +165,20 @@ class ReceiptWidget extends StatelessWidget {
             item.namaProduk,
             style: const TextStyle(fontFamily: 'Courier', fontSize: 11, color: Colors.black87),
           ),
+          // Show kapster name for service items
+          if (kapsterName != null && kapsterName.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                'Kapster: $kapsterName',
+                style: const TextStyle(
+                  fontFamily: 'Courier',
+                  fontSize: 10,
+                  color: Colors.black54,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

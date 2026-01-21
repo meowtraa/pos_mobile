@@ -383,6 +383,7 @@ class POSViewModel extends BaseViewModel {
               userId: cartItem.product.isService
                   ? (cartItem.employeeId != null ? int.tryParse(cartItem.employeeId!) : null)
                   : userId, // Product always uses cashier ID
+              kapsterName: cartItem.product.isService ? cartItem.employeeName : null,
               jmlKepala: cartItem.product.jmlKepala ?? 1,
             ),
           )
