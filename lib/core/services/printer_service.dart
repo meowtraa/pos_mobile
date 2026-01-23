@@ -413,7 +413,7 @@ class PrinterService extends ChangeNotifier {
 
       // Show Member Discount if available
       if (transaction.diskonMember != null && transaction.diskonMember! > 0) {
-        await _printDiscountLine('DISKON MEMBER', transaction.diskonMember!, effectiveWidth, indent);
+        await _printDiscountLine('DISKON LOYALTY', transaction.diskonMember!, effectiveWidth, indent);
       }
 
       // Show discount if available

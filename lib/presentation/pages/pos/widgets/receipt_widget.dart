@@ -98,7 +98,7 @@ class ReceiptWidget extends StatelessWidget {
           _buildTotalRow('SUBTOTAL', _getSubtotal()),
           if (transaction.diskonMember != null && transaction.diskonMember! > 0) ...[
             const SizedBox(height: 4),
-            _buildDiscountRow('DISKON MEMBER', transaction.diskonMember!, null),
+            _buildDiscountRow('DISKON LOYALTY', transaction.diskonMember!, null),
           ],
           if (transaction.diskon != null && transaction.diskon! > 0) ...[
             const SizedBox(height: 4),

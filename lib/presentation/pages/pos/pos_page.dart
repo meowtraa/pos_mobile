@@ -48,7 +48,7 @@ class _POSPageState extends State<POSPage> {
           onCancel: () => Navigator.pop(dialogContext),
           onApplyCoupon: vm.applyCoupon,
           onRemoveCoupon: vm.removeCoupon,
-          onPaymentConfirmed: (paymentMethod, amountReceived, whatsapp, memberDiscount) async {
+          onPaymentConfirmed: (paymentMethod, amountReceived, whatsapp, memberDiscount, customer) async {
             // Get userId from session
             final userId = int.tryParse(SessionService.instance.userId ?? '1') ?? 1;
 
@@ -57,7 +57,7 @@ class _POSPageState extends State<POSPage> {
               paymentMethod: paymentMethod,
               amountReceived: amountReceived,
               userId: userId,
-              customerPhone: whatsapp,
+              customer: customer,
               // memberDiscount handled by VM state
             );
 

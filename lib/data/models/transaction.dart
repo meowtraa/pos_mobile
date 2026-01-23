@@ -5,6 +5,7 @@ library;
 import 'package:intl/intl.dart';
 import '../../core/sync/sync_status.dart';
 import 'transaction_item.dart';
+import 'customer.dart';
 
 /// Status of a transaction
 enum TransactionStatus { pending, selesai, batal }
@@ -30,6 +31,9 @@ class Transaction with Syncable {
 
   /// Voucher ID used (if any)
   final int? voucherId;
+
+  /// Customer object (snapshot)
+  final Customer? customer;
 
   /// Total price (after discount)
   final double totalHarga;
@@ -70,6 +74,7 @@ class Transaction with Syncable {
     this.diskonMember,
     this.kodeVoucher,
     this.voucherId,
+    this.customer,
     required this.totalHarga,
     required this.totalBayar,
     required this.totalKembalian,
@@ -108,11 +113,12 @@ class Transaction with Syncable {
       'created_at': DateFormat('yyyy-MM-dd HH:mm:ss').format(createdAt),
     };
 
-    // Add optional voucher fields
+    // Add optional fields
     if (diskon != null && diskon! > 0) json['diskon'] = diskon;
-    if (diskonMember != null && diskonMember! > 0) json['diskon_member'] = diskonMember;
+    if (diskonMember != null && diskonMember! > 0) json['diskon_loyalty'] = diskonMember;
     if (kodeVoucher != null && kodeVoucher!.isNotEmpty) json['kode_voucher'] = kodeVoucher;
     if (voucherId != null) json['voucher_id'] = voucherId;
+    if (customer != null) json['customer'] = customer!.toJson();
 
     return json;
   }
@@ -144,9 +150,12 @@ class Transaction with Syncable {
       items: items,
       subtotal: (json['subtotal'] as num?)?.toDouble(),
       diskon: (json['diskon'] as num?)?.toDouble(),
-      diskonMember: (json['diskon_member'] as num?)?.toDouble(),
+      diskonMember: (json['diskon_loyalty'] as num?)?.toDouble(),
       kodeVoucher: json['kode_voucher'] as String?,
       voucherId: json['voucher_id'] as int?,
+      customer: json['customer'] != null
+          ? Customer.fromJson(0, Map<String, dynamic>.from(json['customer'] as Map))
+          : null,
       totalHarga: (json['total_harga'] as num).toDouble(),
       totalBayar: (json['total_bayar'] as num).toDouble(),
       totalKembalian: (json['total_kembalian'] as num).toDouble(),
@@ -167,6 +176,7 @@ class Transaction with Syncable {
     double? diskonMember,
     String? kodeVoucher,
     int? voucherId,
+    Customer? customer,
     double? totalHarga,
     double? totalBayar,
     double? totalKembalian,
@@ -186,6 +196,7 @@ class Transaction with Syncable {
       diskonMember: diskonMember ?? this.diskonMember,
       kodeVoucher: kodeVoucher ?? this.kodeVoucher,
       voucherId: voucherId ?? this.voucherId,
+      customer: customer ?? this.customer,
       totalHarga: totalHarga ?? this.totalHarga,
       totalBayar: totalBayar ?? this.totalBayar,
       totalKembalian: totalKembalian ?? this.totalKembalian,

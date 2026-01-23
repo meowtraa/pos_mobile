@@ -51,20 +51,28 @@ class _CustomerRegistrationDialogState extends State<CustomerRegistrationDialog>
     }
   }
 
-  void _submit() {
+  bool _isSaving = false;
+
+  Future<void> _submit() async {
     if (_formKey.currentState?.validate() ?? false) {
+      setState(() => _isSaving = true);
+
       final customer = Customer(
-        phoneNumber: widget.phoneNumber,
-        name: _nameController.text.trim(),
-        address: _addressController.text.trim(),
-        dateOfBirth: _dobController.text.trim().isNotEmpty ? _dobController.text.trim() : null,
-        job: _jobController.text.trim().isNotEmpty ? _jobController.text.trim() : null,
+        id: 0, // Will be assigned by repository
+        nama: _nameController.text.trim(),
+        noWa: widget.phoneNumber,
+        alamat: _addressController.text.trim(),
+        tglLahir: _dobController.text.trim().isNotEmpty ? _dobController.text.trim() : null,
+        pekerjaan: _jobController.text.trim().isNotEmpty ? _jobController.text.trim() : null,
       );
 
-      // Save to dummy repository
-      CustomerRepository.instance.addCustomer(customer);
+      // Save to Firebase
+      final savedCustomer = await CustomerRepository.instance.addCustomer(customer);
 
-      Navigator.pop(context, customer);
+      if (mounted) {
+        setState(() => _isSaving = false);
+        Navigator.pop(context, savedCustomer);
+      }
     }
   }
 
@@ -90,7 +98,7 @@ class _CustomerRegistrationDialogState extends State<CustomerRegistrationDialog>
                     Icon(Icons.person_add, color: colorScheme.primary),
                     const SizedBox(width: 12),
                     Text(
-                      'Registrasi Member Baru',
+                      'Registrasi Customer Baru',
                       style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -165,9 +173,18 @@ class _CustomerRegistrationDialogState extends State<CustomerRegistrationDialog>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                    TextButton(onPressed: _isSaving ? null : () => Navigator.pop(context), child: const Text('Batal')),
                     const SizedBox(width: 8),
-                    FilledButton(onPressed: _submit, child: const Text('Simpan')),
+                    FilledButton(
+                      onPressed: _isSaving ? null : _submit,
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Simpan'),
+                    ),
                   ],
                 ),
               ],

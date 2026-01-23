@@ -13,6 +13,7 @@ import '../../../data/repositories/staff_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../data/repositories/voucher_repository.dart';
 import '../../../data/repositories/customer_repository.dart';
+import '../../../data/models/customer.dart';
 import '../../providers/base_view_model.dart';
 
 /// POS View Model
@@ -416,10 +417,7 @@ class POSViewModel extends BaseViewModel {
     required String paymentMethod,
     required double amountReceived,
     required int userId,
-    String? customerPhone,
-    // memberDiscount param is now optional/ignored as we use state,
-    // but kept for compatibility if needed, or we rely on state.
-    // I entered memberDiscount param in previous turn, I will just use the state _memberDiscount.
+    Customer? customer,
   }) async {
     try {
       // Generate transaction code (UUID-based, guaranteed unique)
@@ -457,6 +455,7 @@ class POSViewModel extends BaseViewModel {
         diskonMember: _memberDiscount > 0 ? _memberDiscount : null,
         kodeVoucher: _couponApplied ? _appliedVoucher?.kode : null,
         voucherId: _couponApplied ? _appliedVoucher?.id : null,
+        customer: customer,
         totalHarga: total, // total getter already includes subtraction
         totalBayar: amountReceived,
         totalKembalian: amountReceived - total,
@@ -487,9 +486,9 @@ class POSViewModel extends BaseViewModel {
       setMemberDiscount(0); // Reset member discount
       notifyListeners();
 
-      // Update customer loyalty if phone provided
-      if (customerPhone != null && customerPhone.isNotEmpty) {
-        CustomerRepository.instance.incrementTransactionCount(customerPhone);
+      // Update customer loyalty if customer provided
+      if (customer != null) {
+        CustomerRepository.instance.incrementTransactionCount(customer.noWa);
       }
 
       if (kDebugMode) {
