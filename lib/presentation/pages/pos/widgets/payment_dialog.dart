@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../data/models/customer.dart';
+import '../../../../data/repositories/customer_repository.dart';
+import 'customer_registration_dialog.dart';
+
 /// Formatter untuk format ribuan dengan titik
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
@@ -67,7 +71,8 @@ class PaymentDialog extends StatefulWidget {
   final VoidCallback onCancel;
   final Future<void> Function(String code) onApplyCoupon;
   final VoidCallback onRemoveCoupon;
-  final Future<bool> Function(String paymentMethod, double amountReceived, String? whatsapp) onPaymentConfirmed;
+  final Future<bool> Function(String paymentMethod, double amountReceived, String? whatsapp, double memberDiscount)
+  onPaymentConfirmed;
   final bool isApplyingCoupon;
 
   const PaymentDialog({
@@ -83,7 +88,12 @@ class PaymentDialog extends StatefulWidget {
     required this.onRemoveCoupon,
     required this.onPaymentConfirmed,
     this.isApplyingCoupon = false,
+    this.memberDiscount = 0,
+    required this.onMemberDiscountChanged,
   });
+
+  final double memberDiscount;
+  final ValueChanged<double> onMemberDiscountChanged;
 
   @override
   State<PaymentDialog> createState() => _PaymentDialogState();
@@ -94,15 +104,24 @@ class _PaymentDialogState extends State<PaymentDialog> {
   final _whatsappController = TextEditingController();
   final _voucherController = TextEditingController();
 
+  Customer? _customer;
+  bool _isCheckingCustomer = false;
+
   double _cashReceived = 0;
   bool _isProcessing = false;
   bool _isCashPayment = true; // true = Tunai, false = Non Tunai
 
-  double get _change => _cashReceived - widget.totalAmount;
+  // _memberDiscount is now passed from parent via widget.memberDiscount
+  // kept as getter to minimize code changes in build method references
+  double get _memberDiscount => widget.memberDiscount;
+
+  double get _finalToPay => widget.totalAmount; // widget.totalAmount already has discount subtracted by VM
+  double get _change => _cashReceived - _finalToPay;
+
   bool get _canPay {
     if (_isProcessing) return false;
     if (_isCashPayment) {
-      return _cashReceived >= widget.totalAmount;
+      return _cashReceived >= _finalToPay;
     }
     return true; // Non tunai tidak perlu input cash
   }
@@ -138,15 +157,64 @@ class _PaymentDialogState extends State<PaymentDialog> {
     setState(() => _cashReceived = amount);
   }
 
+  void _calculateAndNotifyMemberDiscount(Customer? customer) {
+    if (customer == null) {
+      widget.onMemberDiscountChanged(0);
+      return;
+    }
+
+    final currentTrans = customer.transactionCount + 1;
+    double discount = 0;
+
+    if (currentTrans % 10 == 0) {
+      final rawDiscount = widget.subtotal * 0.5; // 50% of subtotal
+      discount = rawDiscount > 25000 ? 25000 : rawDiscount;
+    }
+
+    widget.onMemberDiscountChanged(discount);
+  }
+
+  Future<void> _checkCustomer() async {
+    final phone = _whatsappController.text.trim();
+    if (phone.isEmpty) return;
+
+    setState(() => _isCheckingCustomer = true);
+
+    // Simulate delay
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    Customer? customer = CustomerRepository.instance.findByPhone(phone);
+
+    if (customer == null && mounted) {
+      // Show Registration Dialog
+      customer = await CustomerRegistrationDialog.show(context, phone);
+    }
+
+    if (mounted) {
+      setState(() {
+        _customer = customer;
+        _isCheckingCustomer = false;
+      });
+
+      _calculateAndNotifyMemberDiscount(customer);
+
+      if (customer != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Member terverifikasi: ${customer.name}'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
   Future<void> _processPayment() async {
     setState(() => _isProcessing = true);
 
     try {
       final paymentMethod = _isCashPayment ? 'Tunai' : 'Non Tunai';
-      final amountReceived = _isCashPayment ? _cashReceived : widget.totalAmount;
+      final amountReceived = _isCashPayment ? _cashReceived : _finalToPay;
       final whatsapp = _whatsappController.text.trim().isNotEmpty ? _whatsappController.text.trim() : null;
 
-      final success = await widget.onPaymentConfirmed(paymentMethod, amountReceived, whatsapp);
+      final success = await widget.onPaymentConfirmed(paymentMethod, amountReceived, whatsapp, _memberDiscount);
 
       if (success && mounted) {
         Navigator.pop(context, true);
@@ -206,7 +274,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Rp ${_formatPrice(widget.totalAmount)}',
+                        'Rp ${_formatPrice(_finalToPay)}',
                         style: theme.textTheme.headlineLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: colorScheme.primary, // Blue color like design
@@ -224,34 +292,252 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   children: [
                     // WhatsApp
                     Expanded(
-                      flex: 4,
+                      flex: 1, // Equal width
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'WhatsApp (Opsional)',
+                            'WhatsApp / Member *',
                             style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                           ),
                           const SizedBox(height: 8),
-                          TextField(
-                            controller: _whatsappController,
-                            keyboardType: TextInputType.phone,
-                            enabled: !_isProcessing,
-                            decoration: InputDecoration(
-                              hintText: '08xxxxxx',
-                              prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              isDense: true,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _whatsappController,
+                                  keyboardType: TextInputType.phone,
+                                  enabled: !_isProcessing,
+                                  decoration: InputDecoration(
+                                    hintText: '08xxxxxx',
+                                    prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    isDense: true,
+                                  ),
+                                  onSubmitted: (_) => _checkCustomer(),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (_isCheckingCustomer)
+                                const SizedBox(
+                                  width: 48,
+                                  height: 48,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                )
+                              else if (_customer != null)
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFFFFCDD2), // Pink background (Red 100)
+                                  ),
+                                  child: IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _customer = null;
+                                        _whatsappController.clear();
+                                      });
+                                      _calculateAndNotifyMemberDiscount(null);
+                                    },
+                                    icon: const Icon(Icons.close, size: 20, color: Color(0xFFD32F2F)), // Red 700
+                                    splashRadius: 24,
+                                    tooltip: 'Hapus Member',
+                                  ),
+                                )
+                              else
+                                FilledButton(
+                                  onPressed: _isProcessing ? null : _checkCustomer,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1E3A5F), // Dark blue like design
+                                    minimumSize: const Size(0, 48),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  child: const Text('Cek'),
+                                ),
+                            ],
                           ),
+                          // Customer Info Display
+                          if (_customer != null)
+                            Container(
+                              margin: const EdgeInsets.only(top: 12),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF1E3A5F), Color(0xFF2C5282)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF1E3A5F).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Stack(
+                                children: [
+                                  // Background Pattern (Optional circle/decoration)
+                                  Positioned(
+                                    right: -20,
+                                    top: -20,
+                                    child: Icon(Icons.verified, size: 100, color: Colors.white.withOpacity(0.05)),
+                                  ),
+
+                                  Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Header: Name & Status
+                                        Row(
+                                          children: [
+                                            const CircleAvatar(
+                                              radius: 16,
+                                              backgroundColor: Colors.white24,
+                                              child: Icon(Icons.person, size: 18, color: Colors.white),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    _customer!.name,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Member Verified',
+                                                    style: TextStyle(
+                                                      color: Colors.white.withOpacity(0.8),
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(0.2),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                '#${_customer!.transactionCount}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        // Reward Section
+                                        Builder(
+                                          builder: (context) {
+                                            final nextTrans = _customer!.transactionCount + 1;
+                                            String? reward;
+                                            bool isDiscount = false;
+
+                                            if (nextTrans % 10 == 0) {
+                                              reward = "Selamat! Anda dapat Diskon 50% (Max 25rb) 🎉";
+                                              isDiscount = true;
+                                            } else if (nextTrans % 5 == 0) {
+                                              reward = "Selamat! Anda dapat Gratis Hair Spray 🎁";
+                                            }
+
+                                            if (reward != null) {
+                                              return Container(
+                                                margin: const EdgeInsets.only(top: 12),
+                                                padding: const EdgeInsets.all(10),
+                                                width: double.infinity,
+                                                decoration: BoxDecoration(
+                                                  color: isDiscount
+                                                      ? const Color(0xFFFFF3CD)
+                                                      : const Color(0xFFD1E7DD), // Gold/Green tint
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: isDiscount
+                                                        ? const Color(0xFFFFC107)
+                                                        : const Color(0xFF198754),
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      isDiscount ? Icons.percent : Icons.card_giftcard,
+                                                      size: 16,
+                                                      color: isDiscount
+                                                          ? const Color(0xFF856404)
+                                                          : const Color(0xFF0F5132),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                        reward,
+                                                        style: TextStyle(
+                                                          color: isDiscount
+                                                              ? const Color(0xFF856404)
+                                                              : const Color(0xFF0F5132),
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }
+
+                                            // Progress calculation
+                                            // Calculate distance to next multiple of 5
+                                            // Ensure we don't divide by zero or get weird results
+                                            int rem = 5 - (nextTrans % 5);
+                                            if (rem == 5)
+                                              rem =
+                                                  0; // Should not happen if logic is correct for "not reward" but safe check
+                                            // Actually if nextTrans % 5 == 0 it is reward.
+                                            // So here nextTrans % 5 != 0.
+
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 12),
+                                              child: Text(
+                                                '$rem transaksi lagi menuju hadiah!',
+                                                style: TextStyle(
+                                                  color: Colors.white.withOpacity(0.7),
+                                                  fontSize: 10,
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 16),
                     // Voucher
                     Expanded(
-                      flex: 6,
+                      flex: 1, // Equal width
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -370,6 +656,29 @@ class _PaymentDialogState extends State<PaymentDialog> {
                           ),
                         ],
                       ),
+                      if (_memberDiscount > 0) ...[
+                        const SizedBox(height: 8),
+                        // Diskon Member
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Diskon Member',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.orange[800],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '- Rp ${_formatPrice(_memberDiscount)}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.orange[800],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       if (widget.discountValue > 0) ...[
                         const SizedBox(height: 8),
                         // Diskon
@@ -394,7 +703,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                         children: [
                           Text('Total Bayar', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
                           Text(
-                            'Rp ${_formatPrice(widget.totalAmount)}',
+                            'Rp ${_formatPrice(_finalToPay)}',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.primary,
@@ -456,7 +765,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                           children: [
                             _QuickChip(
                               label: 'Uang Pas',
-                              onTap: !_isProcessing ? () => _setQuickAmount(widget.totalAmount) : null,
+                              onTap: !_isProcessing ? () => _setQuickAmount(_finalToPay) : null,
                             ),
                             _QuickChip(label: '50.000', onTap: !_isProcessing ? () => _setQuickAmount(50000) : null),
                             _QuickChip(label: '100.000', onTap: !_isProcessing ? () => _setQuickAmount(100000) : null),

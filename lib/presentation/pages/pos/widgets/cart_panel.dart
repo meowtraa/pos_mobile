@@ -87,12 +87,14 @@ class CartPanel extends StatelessWidget {
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final item = items[index];
+                      // Use uniqueId for service items, productId for products
+                      final itemId = item.uniqueId ?? item.product.id.toString();
                       return CartItemCard(
                         item: item,
                         staffs: staffs,
-                        onQuantityChanged: (qty) => onQuantityChanged(item.product.id.toString(), qty),
-                        onStaffChanged: (staff) => onStaffChanged(item.product.id.toString(), staff),
-                        onRemove: () => onRemoveItem(item.product.id.toString()),
+                        onQuantityChanged: (qty) => onQuantityChanged(itemId, qty),
+                        onStaffChanged: (staff) => onStaffChanged(itemId, staff),
+                        onRemove: () => onRemoveItem(itemId),
                       );
                     },
                   ),

@@ -12,6 +12,7 @@ import '../../../data/repositories/product_repository.dart';
 import '../../../data/repositories/staff_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../data/repositories/voucher_repository.dart';
+import '../../../data/repositories/customer_repository.dart';
 import '../../providers/base_view_model.dart';
 
 /// POS View Model
@@ -46,6 +47,7 @@ class POSViewModel extends BaseViewModel {
   bool _couponApplied = false;
   bool _isApplyingCoupon = false;
   Voucher? _appliedVoucher;
+  double _memberDiscount = 0; // Member discount applied before voucher
 
   // Getters
   List<Product> get products => _products;
@@ -66,6 +68,7 @@ class POSViewModel extends BaseViewModel {
   bool get isApplyingCoupon => _isApplyingCoupon;
   Voucher? get appliedVoucher => _appliedVoucher;
   bool get hasDiscount => _discountAmount > 0 || _discountPercent > 0;
+  double get memberDiscount => _memberDiscount;
 
   /// Get filtered products based on category and search
   List<Product> get filteredProducts {
@@ -87,21 +90,28 @@ class POSViewModel extends BaseViewModel {
   }
 
   /// Calculate discount value (respects maxPotongan for percentage discount)
+  /// Calculate voucher discount value (respects maxPotongan for percentage discount)
+  /// Applied AFTER member discount
   double get discountValue {
+    final baseAmount = subtotal - _memberDiscount;
+    if (baseAmount <= 0) return 0;
+
     if (_discountPercent > 0) {
-      final calculated = subtotal * (_discountPercent / 100);
+      final calculated = baseAmount * (_discountPercent / 100);
       // Apply max discount limit if specified
       if (_maxPotongan > 0 && calculated > _maxPotongan) {
         return _maxPotongan;
       }
       return calculated;
     }
-    return _discountAmount;
+    // Flat discount - checks against reduced base amount
+    return _discountAmount > baseAmount ? baseAmount : _discountAmount;
   }
 
-  /// Calculate total with discount
+  /// Calculate total with discounts
   double get total {
-    final discounted = subtotal - discountValue;
+    // Total = (Subtotal - MemberDiscount) - VoucherDiscount
+    final discounted = subtotal - _memberDiscount - discountValue;
     return discounted > 0 ? discounted : 0;
   }
 
@@ -206,6 +216,8 @@ class POSViewModel extends BaseViewModel {
 
   /// Add product to cart
   /// Returns true if added successfully, false if out of stock
+  /// For service items: always adds as a new separate item with unique ID
+  /// For products: increments quantity if already in cart
   bool addToCart(Product product) {
     // Check if product can be added
     if (!canAddToCart(product)) {
@@ -215,41 +227,61 @@ class POSViewModel extends BaseViewModel {
       return false;
     }
 
-    final existingIndex = _cartItems.indexWhere((item) => item.product.id == product.id);
-
-    if (existingIndex != -1) {
-      // Update quantity if already in cart
-      final existing = _cartItems[existingIndex];
-      _cartItems[existingIndex] = existing.copyWith(quantity: existing.quantity + 1);
-    } else {
-      // Add new item with default staff for services
+    // Service items are ALWAYS added as new separate items
+    // This allows multiple kapsters for the same service type
+    if (product.isService) {
+      final uniqueId = '${product.id}_${DateTime.now().millisecondsSinceEpoch}';
       _cartItems.add(
         CartItem(
           product: product,
           quantity: 1,
-          employeeId: product.isService && _staffs.isNotEmpty ? _staffs.first.id.toString() : null,
-          employeeName: product.isService && _staffs.isNotEmpty ? _staffs.first.name : null,
+          employeeId: _staffs.isNotEmpty ? _staffs.first.id.toString() : null,
+          employeeName: _staffs.isNotEmpty ? _staffs.first.name : null,
+          uniqueId: uniqueId,
         ),
       );
+    } else {
+      // Products: merge by incrementing quantity
+      final existingIndex = _cartItems.indexWhere((item) => item.product.id == product.id);
+
+      if (existingIndex != -1) {
+        // Update quantity if already in cart
+        final existing = _cartItems[existingIndex];
+        _cartItems[existingIndex] = existing.copyWith(quantity: existing.quantity + 1);
+      } else {
+        // Add new product item
+        _cartItems.add(CartItem(product: product, quantity: 1));
+      }
     }
     notifyListeners();
     return true;
   }
 
   /// Remove item from cart
-  void removeFromCart(String productId) {
-    _cartItems.removeWhere((item) => item.product.id.toString() == productId);
+  /// For service items, itemId is the uniqueId; for products, it's the productId
+  void removeFromCart(String itemId) {
+    _cartItems.removeWhere((item) {
+      // Check uniqueId first (for service items)
+      if (item.uniqueId != null && item.uniqueId == itemId) return true;
+      // Then check productId (for product items)
+      return item.uniqueId == null && item.product.id.toString() == itemId;
+    });
     notifyListeners();
   }
 
   /// Update item quantity
-  void updateQuantity(String productId, int quantity) {
+  /// For service items, itemId is the uniqueId; for products, it's the productId
+  /// Note: Service items always have quantity 1 and should be removed instead of updated
+  void updateQuantity(String itemId, int quantity) {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(itemId);
       return;
     }
 
-    final index = _cartItems.indexWhere((item) => item.product.id.toString() == productId);
+    final index = _cartItems.indexWhere((item) {
+      if (item.uniqueId != null) return item.uniqueId == itemId;
+      return item.product.id.toString() == itemId;
+    });
 
     if (index != -1) {
       final item = _cartItems[index];
@@ -269,12 +301,29 @@ class POSViewModel extends BaseViewModel {
   }
 
   /// Update staff for cart item
-  void updateEmployee(String productId, Staff staff) {
-    final index = _cartItems.indexWhere((item) => item.product.id.toString() == productId);
+  /// For service items, itemId is the uniqueId
+  void updateEmployee(String itemId, Staff staff) {
+    final index = _cartItems.indexWhere((item) {
+      if (item.uniqueId != null) return item.uniqueId == itemId;
+      return item.product.id.toString() == itemId;
+    });
 
     if (index != -1) {
       _cartItems[index] = _cartItems[index].copyWith(employeeId: staff.id.toString(), employeeName: staff.name);
       notifyListeners();
+    }
+  }
+
+  /// Set member discount amount
+  void setMemberDiscount(double amount) {
+    if (_memberDiscount != amount) {
+      _memberDiscount = amount;
+      // Re-validate voucher if exists because base amount changed
+      if (_couponApplied && _couponCode.isNotEmpty) {
+        applyCoupon(_couponCode);
+      } else {
+        notifyListeners();
+      }
     }
   }
 
@@ -292,8 +341,9 @@ class POSViewModel extends BaseViewModel {
     notifyListeners();
 
     try {
-      // Validate voucher from Firebase
-      final result = await _voucherRepo.validateVoucher(_couponCode, subtotal);
+      // Validate voucher from Firebase using base amount (Subtotal - MemberDiscount)
+      final baseAmount = subtotal - _memberDiscount;
+      final result = await _voucherRepo.validateVoucher(_couponCode, baseAmount);
 
       if (result.voucher != null) {
         final voucher = result.voucher!;
@@ -304,7 +354,9 @@ class POSViewModel extends BaseViewModel {
           _discountAmount = 0;
           _maxPotongan = voucher.maxPotongan;
         } else {
-          _discountAmount = voucher.nilai > subtotal ? subtotal : voucher.nilai;
+          // For flat discount, momentarily store the value.
+          // Actual capped value is calculated in discountValue getter.
+          _discountAmount = voucher.nilai;
           _discountPercent = 0;
           _maxPotongan = 0;
         }
@@ -364,6 +416,10 @@ class POSViewModel extends BaseViewModel {
     required String paymentMethod,
     required double amountReceived,
     required int userId,
+    String? customerPhone,
+    // memberDiscount param is now optional/ignored as we use state,
+    // but kept for compatibility if needed, or we rely on state.
+    // I entered memberDiscount param in previous turn, I will just use the state _memberDiscount.
   }) async {
     try {
       // Generate transaction code (UUID-based, guaranteed unique)
@@ -393,10 +449,15 @@ class POSViewModel extends BaseViewModel {
       final transaction = model.Transaction(
         kodeTransaksi: kodeTransaksi,
         items: items,
-        subtotal: _couponApplied ? subtotal : null,
+
+        // Transaction Logic:
+        // Subtotal -> Member Discount (diskonMember) -> Voucher Discount (diskon) -> Total.
+        subtotal: subtotal,
         diskon: _couponApplied ? discountValue : null,
+        diskonMember: _memberDiscount > 0 ? _memberDiscount : null,
         kodeVoucher: _couponApplied ? _appliedVoucher?.kode : null,
-        totalHarga: total,
+        voucherId: _couponApplied ? _appliedVoucher?.id : null,
+        totalHarga: total, // total getter already includes subtraction
         totalBayar: amountReceived,
         totalKembalian: amountReceived - total,
         metodePembayaran: paymentMethod,
@@ -420,8 +481,16 @@ class POSViewModel extends BaseViewModel {
         await _voucherRepo.useVoucher(_appliedVoucher!.kode);
       }
 
-      // Reset cart
-      resetCart();
+      // Clear cart
+      _cartItems.clear();
+      removeCoupon();
+      setMemberDiscount(0); // Reset member discount
+      notifyListeners();
+
+      // Update customer loyalty if phone provided
+      if (customerPhone != null && customerPhone.isNotEmpty) {
+        CustomerRepository.instance.incrementTransactionCount(customerPhone);
+      }
 
       if (kDebugMode) {
         print('✅ Transaction created: $kodeTransaksi');

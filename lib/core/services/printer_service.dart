@@ -411,6 +411,11 @@ class PrinterService extends ChangeNotifier {
       final subtotalValue = _getSubtotal(transaction);
       await _printTotalLine('SUBTOTAL', subtotalValue, effectiveWidth, indent);
 
+      // Show Member Discount if available
+      if (transaction.diskonMember != null && transaction.diskonMember! > 0) {
+        await _printDiscountLine('DISKON MEMBER', transaction.diskonMember!, effectiveWidth, indent);
+      }
+
       // Show discount if available
       if (transaction.diskon != null && transaction.diskon! > 0) {
         final discountLabel = transaction.kodeVoucher != null && transaction.kodeVoucher!.isNotEmpty
@@ -478,7 +483,7 @@ class PrinterService extends ChangeNotifier {
       return transaction.subtotal!;
     }
     // If no subtotal stored, add back the discount to get original subtotal
-    return transaction.totalHarga + (transaction.diskon ?? 0);
+    return transaction.totalHarga + (transaction.diskon ?? 0) + (transaction.diskonMember ?? 0);
   }
 
   /// Helper for printing discount line with minus sign

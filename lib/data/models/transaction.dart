@@ -22,8 +22,14 @@ class Transaction with Syncable {
   /// Discount amount from voucher
   final double? diskon;
 
+  /// Discount amount from member loyalty
+  final double? diskonMember;
+
   /// Voucher code used (if any)
   final String? kodeVoucher;
+
+  /// Voucher ID used (if any)
+  final int? voucherId;
 
   /// Total price (after discount)
   final double totalHarga;
@@ -61,7 +67,9 @@ class Transaction with Syncable {
     required this.items,
     this.subtotal,
     this.diskon,
+    this.diskonMember,
     this.kodeVoucher,
+    this.voucherId,
     required this.totalHarga,
     required this.totalBayar,
     required this.totalKembalian,
@@ -102,7 +110,9 @@ class Transaction with Syncable {
 
     // Add optional voucher fields
     if (diskon != null && diskon! > 0) json['diskon'] = diskon;
+    if (diskonMember != null && diskonMember! > 0) json['diskon_member'] = diskonMember;
     if (kodeVoucher != null && kodeVoucher!.isNotEmpty) json['kode_voucher'] = kodeVoucher;
+    if (voucherId != null) json['voucher_id'] = voucherId;
 
     return json;
   }
@@ -134,7 +144,9 @@ class Transaction with Syncable {
       items: items,
       subtotal: (json['subtotal'] as num?)?.toDouble(),
       diskon: (json['diskon'] as num?)?.toDouble(),
+      diskonMember: (json['diskon_member'] as num?)?.toDouble(),
       kodeVoucher: json['kode_voucher'] as String?,
+      voucherId: json['voucher_id'] as int?,
       totalHarga: (json['total_harga'] as num).toDouble(),
       totalBayar: (json['total_bayar'] as num).toDouble(),
       totalKembalian: (json['total_kembalian'] as num).toDouble(),
@@ -152,7 +164,9 @@ class Transaction with Syncable {
     List<TransactionItem>? items,
     double? subtotal,
     double? diskon,
+    double? diskonMember,
     String? kodeVoucher,
+    int? voucherId,
     double? totalHarga,
     double? totalBayar,
     double? totalKembalian,
@@ -169,7 +183,9 @@ class Transaction with Syncable {
       items: items ?? this.items,
       subtotal: subtotal ?? this.subtotal,
       diskon: diskon ?? this.diskon,
+      diskonMember: diskonMember ?? this.diskonMember,
       kodeVoucher: kodeVoucher ?? this.kodeVoucher,
+      voucherId: voucherId ?? this.voucherId,
       totalHarga: totalHarga ?? this.totalHarga,
       totalBayar: totalBayar ?? this.totalBayar,
       totalKembalian: totalKembalian ?? this.totalKembalian,

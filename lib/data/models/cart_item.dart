@@ -8,18 +8,23 @@ class CartItem {
   final String? employeeId;
   final String? employeeName;
 
-  const CartItem({required this.product, this.quantity = 1, this.employeeId, this.employeeName});
+  /// Unique ID for distinguishing service items with same product but different instances
+  /// This allows multiple service items with different kapsters in one transaction
+  final String? uniqueId;
+
+  const CartItem({required this.product, this.quantity = 1, this.employeeId, this.employeeName, this.uniqueId});
 
   /// Calculate total price for this item
   double get totalPrice => product.price * quantity;
 
   /// Copy with new values
-  CartItem copyWith({Product? product, int? quantity, String? employeeId, String? employeeName}) {
+  CartItem copyWith({Product? product, int? quantity, String? employeeId, String? employeeName, String? uniqueId}) {
     return CartItem(
       product: product ?? this.product,
       quantity: quantity ?? this.quantity,
       employeeId: employeeId ?? this.employeeId,
       employeeName: employeeName ?? this.employeeName,
+      uniqueId: uniqueId ?? this.uniqueId,
     );
   }
 }

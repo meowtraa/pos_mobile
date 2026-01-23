@@ -129,57 +129,60 @@ class CartItemCard extends StatelessWidget {
               else
                 const Spacer(),
 
-              const SizedBox(width: 12),
+              // Only show spacer if not a service (service already has dropdown that's Expanded)
+              if (!item.product.isService) const SizedBox(width: 12),
 
-              // Quantity Control - BIGGER BUTTONS
-              Container(
-                height: 44, // Same height as dropdown
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colorScheme.outlineVariant),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Minus Button
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => onQuantityChanged(item.quantity - 1),
-                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(9)),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          alignment: Alignment.center,
-                          child: Icon(Icons.remove, size: 20, color: colorScheme.primary),
+              // Quantity Control - Only show for NON-SERVICE items
+              // Service items are always qty=1, click again to add another with different kapster
+              if (!item.product.isService)
+                Container(
+                  height: 44, // Same height as dropdown
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Minus Button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => onQuantityChanged(item.quantity - 1),
+                          borderRadius: const BorderRadius.horizontal(left: Radius.circular(9)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            alignment: Alignment.center,
+                            child: Icon(Icons.remove, size: 20, color: colorScheme.primary),
+                          ),
                         ),
                       ),
-                    ),
-                    // Quantity Display (tanpa 'x')
-                    Container(
-                      constraints: const BoxConstraints(minWidth: 32),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${item.quantity}',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    // Plus Button
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => onQuantityChanged(item.quantity + 1),
-                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(9)),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          alignment: Alignment.center,
-                          child: Icon(Icons.add, size: 20, color: colorScheme.primary),
+                      // Quantity Display (tanpa 'x')
+                      Container(
+                        constraints: const BoxConstraints(minWidth: 32),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${item.quantity}',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
-                    ),
-                  ],
+                      // Plus Button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => onQuantityChanged(item.quantity + 1),
+                          borderRadius: const BorderRadius.horizontal(right: Radius.circular(9)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            alignment: Alignment.center,
+                            child: Icon(Icons.add, size: 20, color: colorScheme.primary),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
 

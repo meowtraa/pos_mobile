@@ -96,6 +96,10 @@ class ReceiptWidget extends StatelessWidget {
 
           // Subtotal, Discount, Total
           _buildTotalRow('SUBTOTAL', _getSubtotal()),
+          if (transaction.diskonMember != null && transaction.diskonMember! > 0) ...[
+            const SizedBox(height: 4),
+            _buildDiscountRow('DISKON MEMBER', transaction.diskonMember!, null),
+          ],
           if (transaction.diskon != null && transaction.diskon! > 0) ...[
             const SizedBox(height: 4),
             _buildDiscountRow('DISKON', transaction.diskon!, transaction.kodeVoucher),
@@ -230,7 +234,7 @@ class ReceiptWidget extends StatelessWidget {
       return transaction.subtotal!;
     }
     // If no subtotal stored, add back the discount to get original subtotal
-    return transaction.totalHarga + (transaction.diskon ?? 0);
+    return transaction.totalHarga + (transaction.diskon ?? 0) + (transaction.diskonMember ?? 0);
   }
 
   /// Build discount row with voucher code
